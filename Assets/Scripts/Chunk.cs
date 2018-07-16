@@ -6,8 +6,6 @@ public class Chunk : MonoBehaviour {
 
     // Use this for initialization
 
-    public List<GameObject> tileMeshes;
-
 	void Start () {
 		
 	}

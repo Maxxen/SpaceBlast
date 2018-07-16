@@ -22,6 +22,9 @@ public class Map : MonoBehaviour {
     public GameObject tile_3;
     public GameObject tile_4;
 
+    public float tileScale = 0.5f;
+    public int tileRotationOffset = 180;
+
     TileMap tileMap;
 
     void Start ()
@@ -41,38 +44,48 @@ public class Map : MonoBehaviour {
             {
                 var c = Instantiate(ChunkPrefab, new Vector3(cx * chunkWidth, 0, cy * chunkHeight), Quaternion.identity, this.transform);
                 chunks.Add(c);
+                CombineInstance[] combines = new CombineInstance[chunkWidth * chunkHeight];
 
-                for(int y = 0; y < chunkHeight + 1; y++)
+
+                for(int y = 0; y < chunkHeight; y++)
                 {
-                    for(int x = 0; x < chunkWidth + 1; x++)
+                    for(int x = 0; x < chunkWidth; x++)
                     {
 
                         var xPos = x + (cx * chunkWidth);
                         var yPos = y + (cy * chunkWidth);
                         var mst = tileMap.SampleTiles(xPos, yPos);
+                        var tile = tile_4;
                         switch (mst.Type)
                         {
                             case MarchingSquareTileType.Empty:
-                                Instantiate(tile_0, new Vector3(xPos, 0, yPos), Quaternion.Euler(0, mst.Rotation + 180, 0), c.transform);
+                                tile = tile_0;
                                 break;
                             case MarchingSquareTileType.Single:
-                                Instantiate(tile_1, new Vector3(xPos, 0, yPos), Quaternion.Euler(0, mst.Rotation + 180, 0), c.transform);
+                                tile = tile_1;
                                 break;
                             case MarchingSquareTileType.Double:
-                                Instantiate(tile_2, new Vector3(xPos, 0, yPos), Quaternion.Euler(0, mst.Rotation + 180, 0), c.transform);
+                                tile = tile_2;
                                 break;
                             case MarchingSquareTileType.Triple:
-                                Instantiate(tile_3, new Vector3(xPos, 0, yPos), Quaternion.Euler(0, mst.Rotation + 180, 0), c.transform);
+                                tile = tile_3;
                                 break;
                             case MarchingSquareTileType.Quad:
-                                Instantiate(tile_4, new Vector3(xPos, 0, yPos), Quaternion.Euler(0, mst.Rotation + 180, 0), c.transform);
+                                tile = tile_4;
                                 break;
                             default:
                                 break;
                         }
+
+                        combines[x * chunkWidth + y].mesh = tile.GetComponent<MeshFilter>().sharedMesh;
+                        combines[x * chunkWidth + y].transform = Matrix4x4.TRS(new Vector3(x, 0, y), Quaternion.Euler(0, mst.Rotation + tileRotationOffset, 0), new Vector3(tileScale, tileScale, tileScale));
+                        Debug.Log(combines[x * chunkHeight + y].transform);
+
                     }
                 }
-                //TODO: Merge chunk meshes
+
+                c.GetComponent<MeshFilter>().mesh = new Mesh();
+                c.GetComponent<MeshFilter>().mesh.CombineMeshes(combines, true);
             }
         }
     }

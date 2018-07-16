@@ -33,7 +33,6 @@ public class Map : MonoBehaviour {
 
         tileMap.GenerateMap();
         GenerateChunkMeshes();
-
     }
 
     public void GenerateChunkMeshes()
@@ -44,8 +43,8 @@ public class Map : MonoBehaviour {
             {
                 var c = Instantiate(ChunkPrefab, new Vector3(cx * chunkWidth, 0, cy * chunkHeight), Quaternion.identity, this.transform);
                 chunks.Add(c);
-                CombineInstance[] combines = new CombineInstance[chunkWidth * chunkHeight];
-
+                CombineInstance[] meshCombines = new CombineInstance[chunkWidth * chunkHeight];
+                List<CombineInstance> colliderCombines = new List<CombineInstance>();
 
                 for(int y = 0; y < chunkHeight; y++)
                 {
@@ -56,6 +55,7 @@ public class Map : MonoBehaviour {
                         var yPos = y + (cy * chunkWidth);
                         var mst = tileMap.SampleTiles(xPos, yPos);
                         var tile = tile_4;
+
                         switch (mst.Type)
                         {
                             case MarchingSquareTileType.Empty:
@@ -76,16 +76,28 @@ public class Map : MonoBehaviour {
                             default:
                                 break;
                         }
+                        
+                        var tileTransform = Matrix4x4.TRS(new Vector3(x, 0, y), Quaternion.Euler(0, mst.Rotation + tileRotationOffset, 0), new Vector3(tileScale, tileScale, tileScale));
+                        meshCombines[x * chunkWidth + y].mesh = tile.GetComponent<MeshFilter>().sharedMesh;
+                        meshCombines[x * chunkWidth + y].transform = tileTransform;
 
-                        combines[x * chunkWidth + y].mesh = tile.GetComponent<MeshFilter>().sharedMesh;
-                        combines[x * chunkWidth + y].transform = Matrix4x4.TRS(new Vector3(x, 0, y), Quaternion.Euler(0, mst.Rotation + tileRotationOffset, 0), new Vector3(tileScale, tileScale, tileScale));
-                        Debug.Log(combines[x * chunkHeight + y].transform);
-
+                        if(tile != tile_4)
+                        {
+                            //The "filled" tile doesnt have a collider, so we cant just create a parallell array to the geometry combines.
+                            //We could further optimize this list by merging adjacent identical faces, (greedy meshing), but thats for another time.
+                            colliderCombines.Add(new CombineInstance() { mesh = tile.GetComponent<MeshCollider>().sharedMesh, transform = tileTransform });
+                        }
                     }
                 }
 
                 c.GetComponent<MeshFilter>().mesh = new Mesh();
-                c.GetComponent<MeshFilter>().mesh.CombineMeshes(combines, true);
+                c.GetComponent<MeshFilter>().mesh.CombineMeshes(meshCombines, true);
+                c.GetComponent<MeshCollider>().sharedMesh = new Mesh();
+                c.GetComponent<MeshCollider>().sharedMesh.CombineMeshes(colliderCombines.ToArray());
+                //We have to refresh the gameobject in order for the mesh collider to update.
+                c.SetActive(false);
+                c.SetActive(true);
+
             }
         }
     }

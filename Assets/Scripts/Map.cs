@@ -37,6 +37,7 @@ public class Map : MonoBehaviour {
     void Start ()
     {
         random = new System.Random(1337);
+        Debug.Log(chunksX * chunkWidth);
         tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1, random);
 
         tileMap.GenerateMap();
@@ -122,13 +123,16 @@ public class Map : MonoBehaviour {
         var player = Instantiate(player_prefab, new Vector3(spawnRoom.MidCenter.X, 0.1f, spawnRoom.MidCenter.Y), Quaternion.identity);
         Camera.main.GetComponent<CameraController>().player = player;
 
-        foreach(Rectangle r in playAreas)
+        foreach (Rectangle r in playAreas)
         {
-            var points = r.GetAutoEvenlySpacedPoints(3);
-            foreach(Point p in points)
+            var points = r.GetEvenlySpacedPointsAuto(2);
+            foreach (Point p in points)
             {
-                var e = Instantiate(enemy_chaser, new Vector3(p.X, 0.1f, p.Y), Quaternion.identity);
-                e.GetComponent<Enemy_Chaser_Controller>().Player = player;
+                if (random.Next(0, 4) == 1)
+                {
+                    var e = Instantiate(enemy_chaser, new Vector3(p.X, 0.1f, p.Y), Quaternion.identity);
+                    e.GetComponent<Enemy_Chaser_Controller>().Player = player;
+                }
             }
         }
     }

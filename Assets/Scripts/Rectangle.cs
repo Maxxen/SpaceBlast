@@ -78,7 +78,7 @@ namespace Assets.Scripts
             return intersections;
         }
 
-        public List<Point> GetAutoEvenlySpacedPoints(int pointMargin)
+        public List<Point> GetEvenlySpacedPointsAuto(int pointMargin)
         {
             int pointsFitH = Width / pointMargin;
             int pointsFitV = Height / pointMargin;

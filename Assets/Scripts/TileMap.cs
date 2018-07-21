@@ -20,12 +20,14 @@ namespace Assets.Scripts
             this.width = tileWidth;
             this.height = tileHeight;
             this.random = random;
+
         }
 
         public void SetTile(int x, int y, Tile tile)
         {
             if (x >= width || y >= height || x <= 0 || y <= 0)
             {
+                //We cant set a tile outside of bounds.
                 return;
             }
             else
@@ -136,6 +138,8 @@ namespace Assets.Scripts
 
             ConnectRooms(roomTree);
         }
+
+        //Recursively create hallways between every pair of split rooms.
         public void ConnectRooms(Room room)
         {
             if (!room.IsLeaf)
@@ -143,15 +147,20 @@ namespace Assets.Scripts
                 var l = room.Left;
                 var r = room.Right;
 
-                var start = l.Dimensions.MidCenter - new Point(1, 1);
-                var end = r.Dimensions.MidCenter + new Point(1, 1);
-                var corridor = new Rectangle(start, end);
-
-                Fill(corridor, Tile.Floor);
+                CreateHall(l, r);
 
                 ConnectRooms(l);
                 ConnectRooms(r);
             }
+        }
+
+        public void CreateHall(Room l, Room r)
+        {
+            var start = l.Dimensions.MidCenter - new Point(1, 1);
+            var end = r.Dimensions.MidCenter + new Point(1, 1);
+            var corridor = new Rectangle(start, end);
+
+            Fill(corridor, Tile.Floor);
         }
     }
 }

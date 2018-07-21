@@ -12,10 +12,12 @@ public class Enemy_Chaser_Controller : MonoBehaviour {
 
     CharacterController control;
     Animator anim;
+
 	// Use this for initialization
 	void Start () {
-        control = GetComponent<CharacterController>();
-        anim = GetComponent<Animator>();
+        control = gameObject.GetComponent<CharacterController>();
+        anim = gameObject.GetComponent<Animator>();
+        anim.Play("Idle");
 	}
 	
 	// Update is called once per frame
@@ -23,7 +25,7 @@ public class Enemy_Chaser_Controller : MonoBehaviour {
     {
         var distance = Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(Player.transform.position.x, Player.transform.position.z));
 
-        if (distance <= range)
+        if (distance < range)
         {
             //var turnFactor = Mathf.InverseLerp(0, range, distance);
             //var turnSpeed = maxTurnSpeed * turnFactor;
@@ -32,13 +34,12 @@ public class Enemy_Chaser_Controller : MonoBehaviour {
             //transform.rotation = Quaternion.Slerp(transform.rotation, rot, turnSpeed * Time.deltaTime);
 
             transform.rotation = rot;
-
             control.Move(movementSpeed * Time.deltaTime * lookdir.normalized);
-            anim.SetTrigger("Chase");
+            this.anim.SetTrigger("Chase");
         }
         else
         {
-            anim.SetTrigger("StopChase");
+            this.anim.SetTrigger("StopChase");
         }
 	}
 }

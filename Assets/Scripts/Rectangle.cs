@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Assets.Scripts
 {
-    class Rectangle
+    struct Rectangle
     {
 
         public int Width { get { return BotRight.X - TopLeft.X; } }
@@ -50,6 +50,40 @@ namespace Assets.Scripts
             }
 
             return new Rectangle(new Point(TopLeft.X + margin, TopLeft.Y + margin), new Point(BotRight.X - margin, BotRight.Y - margin));
+        }
+
+        public List<Point> GetEvenlySpacedPoints(int horizontalDivides, int verticalDivides)
+        {
+            if(horizontalDivides == 0 || verticalDivides == 0)
+            {
+                //no divides, no points to return
+                return new List<Point>();
+            }
+
+            List<Point> intersections = new List<Point>();
+            int xDistance = Width / (horizontalDivides + 1);
+            int yDistance = Height / (verticalDivides + 1);
+
+            if (xDistance != 0 && yDistance != 0)
+            {
+
+                for (int x = 1; x < horizontalDivides; x++)
+                {
+                    for (int y = 1; y < verticalDivides; y++)
+                    {
+                        intersections.Add(new Point(x * xDistance, y * yDistance) + TopLeft);
+                    }
+                }
+            }
+            return intersections;
+        }
+
+        public List<Point> GetAutoEvenlySpacedPoints(int pointMargin)
+        {
+            int pointsFitH = Width / pointMargin;
+            int pointsFitV = Height / pointMargin;
+
+            return GetEvenlySpacedPoints(pointsFitH - 1, pointsFitV - 1);
         }
     }
 }

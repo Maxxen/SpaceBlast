@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class Map : MonoBehaviour {
 
@@ -21,18 +22,26 @@ public class Map : MonoBehaviour {
     public GameObject tile_2;
     public GameObject tile_3;
     public GameObject tile_4;
+    public GameObject player_prefab;
+    public GameObject enemy_chaser;
+    public GameObject enemy_shooter;
+    public GameObject enemy_bomber;
+
 
     public float tileScale = 0.5f;
     public int tileRotationOffset = 180;
+    private System.Random random;
 
-    TileMap tileMap;
+    private TileMap tileMap;
 
     void Start ()
     {
-        tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1);
+        random = new System.Random(1337);
+        tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1, random);
 
         tileMap.GenerateMap();
         GenerateChunkMeshes();
+        SpawnPlayerAndEnemies();
     }
 
     public void GenerateChunkMeshes()
@@ -83,7 +92,7 @@ public class Map : MonoBehaviour {
 
                         if(tile != tile_4)
                         {
-                            //The "filled" tile doesnt have a collider, so we cant just create a parallell array to the geometry combines.
+                            //The "filled" tile_4 doesnt have a collider, so we cant just create a parallell array to the geometry combines.
                             //We could further optimize this list by merging adjacent identical faces, (greedy meshing), but thats for another time.
                             colliderCombines.Add(new CombineInstance() { mesh = tile.GetComponent<MeshCollider>().sharedMesh, transform = tileTransform });
                         }
@@ -102,9 +111,25 @@ public class Map : MonoBehaviour {
         }
     }
 	
-	// Update is called once per frame
-	void Update ()
+    public void SpawnPlayerAndEnemies()
     {
-	    
-	}
+        List<Rectangle> playAreas = tileMap.Rooms.Select((r) => r.Dimensions).ToList();
+
+        int spawnRoomIndex = random.Next(0, playAreas.Count);
+        Rectangle spawnRoom = playAreas[spawnRoomIndex];
+        playAreas.RemoveAt(spawnRoomIndex);
+
+        var player = Instantiate(player_prefab, new Vector3(spawnRoom.MidCenter.X, 0.1f, spawnRoom.MidCenter.Y), Quaternion.identity);
+        Camera.main.GetComponent<CameraController>().player = player;
+
+        foreach(Rectangle r in playAreas)
+        {
+            var points = r.GetAutoEvenlySpacedPoints(3);
+            foreach(Point p in points)
+            {
+                var e = Instantiate(enemy_chaser, new Vector3(p.X, 0.1f, p.Y), Quaternion.identity);
+                e.GetComponent<Enemy_Chaser_Controller>().Player = player;
+            }
+        }
+    }
 }

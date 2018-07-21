@@ -7,16 +7,19 @@ namespace Assets.Scripts
 {
     class TileMap
     {
-        int width;
-        int height;
+        private int width;
+        private int height;
+        private Random random;
+        private Tile[,] tiles;
 
-        public Tile[,] tiles;
+        public List<Room> Rooms { get; private set; }
 
-        public TileMap(int tileWidth, int tileHeight)
+        public TileMap(int tileWidth, int tileHeight, Random random)
         {
             tiles = new Tile[tileWidth,tileHeight];
             this.width = tileWidth;
             this.height = tileHeight;
+            this.random = random;
         }
 
         public void SetTile(int x, int y, Tile tile)
@@ -31,7 +34,7 @@ namespace Assets.Scripts
             }
         }
 
-        private Tile GetTile(int x, int y)
+        public Tile GetTile(int x, int y)
         {
             if (x >= width || y >= height || x <= 0 || y <= 0)
             {
@@ -41,6 +44,17 @@ namespace Assets.Scripts
             else
             {
                 return tiles[x, y];
+            }
+        }
+
+        public void Fill(Rectangle r, Tile tile)
+        {
+            for(int y = 0; y < r.Height; y++)
+            {
+                for(int x = 0; x < r.Width; x++)
+                {
+                    SetTile(r.TopLeft.X + x, r.TopLeft.Y + y, tile);
+                }
             }
         }
 
@@ -108,30 +122,19 @@ namespace Assets.Scripts
 
             //Generate the room layout by recusively splitting rooms.
             var roomTree = new Room(new Rectangle(new Point(0, 0), new Point(width, height)));
-            var rnd = new Random(1337);
 
-            roomTree.Split(5, rnd);
+            roomTree.Split(5, random);
 
-            var rooms = new List<Room>();
-            roomTree.GetLeaves(rooms);
+            Rooms = new List<Room>();
+            roomTree.GetLeaves(Rooms);
 
             //Go through all rooms and fill their corresponding tiles with floor.
-            foreach (Room r in rooms)
+            foreach (Room r in Rooms)
             {
-                for (int y = r.Dimensions.TopLeft.Y + 1; y < r.Dimensions.BotRight.Y - 1; y++)
-                {
-                    for (int x = r.Dimensions.TopLeft.X + 1; x < r.Dimensions.BotRight.X - 1; x++)
-                    {
-                        SetTile(x, y, Tile.Floor);
-                    }
-                }
+                Fill(r.Dimensions.Inset(1), Tile.Floor);
             }
 
-            //Todo,
             ConnectRooms(roomTree);
-
-            //TileLayout()
-
         }
         public void ConnectRooms(Room room)
         {
@@ -142,14 +145,10 @@ namespace Assets.Scripts
 
                 var start = l.Dimensions.MidCenter - new Point(1, 1);
                 var end = r.Dimensions.MidCenter + new Point(1, 1);
-            
-                for (int y = start.Y; y < end.Y; y++)
-                {
-                    for (int x = start.X; x < end.X; x++)
-                    {
-                        SetTile(x, y, Tile.Floor);
-                    }
-                }
+                var corridor = new Rectangle(start, end);
+
+                Fill(corridor, Tile.Floor);
+
                 ConnectRooms(l);
                 ConnectRooms(r);
             }

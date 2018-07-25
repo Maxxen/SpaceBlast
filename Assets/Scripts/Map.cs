@@ -22,6 +22,7 @@ public class Map : MonoBehaviour {
     public GameObject tile_2;
     public GameObject tile_3;
     public GameObject tile_4;
+
     public GameObject player_prefab;
     public GameObject enemy_chaser;
     public GameObject enemy_shooter;
@@ -100,14 +101,119 @@ public class Map : MonoBehaviour {
                     }
                 }
 
-                c.GetComponent<MeshFilter>().mesh = new Mesh();
-                c.GetComponent<MeshFilter>().mesh.CombineMeshes(meshCombines, true);
+
+                var combinedMesh = new Mesh();
+                combinedMesh.CombineMeshes(meshCombines, true);
+                UnityEditor.MeshUtility.Optimize(combinedMesh);
+                c.GetComponent<MeshFilter>().mesh = combinedMesh;
+                
                 c.GetComponent<MeshCollider>().sharedMesh = new Mesh();
                 c.GetComponent<MeshCollider>().sharedMesh.CombineMeshes(colliderCombines.ToArray());
                 //We have to refresh the gameobject in order for the mesh collider to update.
                 c.SetActive(false);
                 c.SetActive(true);
 
+            }
+        }
+    }
+
+    public void SampleColliders(int cx, int cy)
+    {
+        CombineInstance[] meshCombines = new CombineInstance[chunkWidth * chunkHeight];
+        MarchingSquareTile[][] tiles = new MarchingSquareTile[chunkHeight][];
+        //Initialize jagged array
+        for(int i = 0; i < chunkHeight; i++)
+        {
+            tiles[i] = new MarchingSquareTile[chunkWidth];
+        }
+
+        for (int y = 0; y < chunkHeight; y++)
+        {
+            for (int x = 0; x < chunkWidth; x++)
+            {
+                var xPos = x + (cx * chunkWidth);
+                var yPos = y + (cy * chunkWidth);
+                var mst = tileMap.SampleTiles(xPos, yPos);
+                tiles[y][x] = mst;
+                var tileMesh = tile_4;
+
+                switch (mst.Type)
+                {
+                    case MarchingSquareTileType.Empty:
+                        tileMesh = tile_0;
+                        break;
+                    case MarchingSquareTileType.Single:
+                        tileMesh = tile_1;
+                        break;
+                    case MarchingSquareTileType.Double:
+                        tileMesh = tile_2;
+                        break;
+                    case MarchingSquareTileType.Triple:
+                        tileMesh = tile_3;
+                        break;
+                    case MarchingSquareTileType.Quad:
+                        tileMesh = tile_4;
+                        break;
+                    default:
+                        break;
+                }
+
+                var tileTransform = Matrix4x4.TRS(new Vector3(x, 0, y), Quaternion.Euler(0, mst.Rotation + tileRotationOffset, 0), new Vector3(tileScale, tileScale, tileScale));
+                meshCombines[x * chunkWidth + y].mesh = tileMesh.GetComponent<MeshFilter>().sharedMesh;
+                meshCombines[x * chunkWidth + y].transform = tileTransform;
+            }
+        }
+
+        bool[][] traversed = new bool[chunkHeight][];
+        for(int i = 0; i < chunkHeight; i++)
+        {
+            traversed[i] = new bool[chunkWidth];
+        }
+
+        for (int y = 0; y < chunkHeight; y++)
+        {
+            for (int x = 0; x < chunkWidth; x++)
+            {
+                if (!traversed[y][x])
+                {
+                    var mst = tiles[y][x];
+                    switch (mst.Type)
+                    {
+                        case MarchingSquareTileType.Empty:
+                            //Try to widen collider as much as possible
+
+                            int height = 0;
+                            //This query selects an entire "row" of adjacent, matching and not-traversed tiles.
+                            var row = tiles[y + height].Skip(x).TakeWhile((MarchingSquareTile t, int i) => (t.Type == mst.Type && !traversed[y + height][x + i]));
+                            int width = row.Count(); 
+
+                            while (row.Count() == width && height < chunkHeight)
+                            {
+                                //If the current row is just as wide as the inital row's width, mark it as traversed and increase height
+                                for(int t = 0; t < x + width; t++)
+                                {
+                                    traversed[y + height][x + t] = true;
+                                }
+                                height++;
+                            }
+
+                            Rectangle collider = new Rectangle(new Point(x, y), new Point(x + width, y + height));
+                            //TODO Reactangle.ToMesh()
+
+
+                            break;
+                        case MarchingSquareTileType.Single:
+                            break;
+                        case MarchingSquareTileType.Double:
+                            break;
+                        case MarchingSquareTileType.Triple:
+                            break;
+                        case MarchingSquareTileType.Quad:
+                            break;
+                        default:
+                            break;
+                    }
+                }
             }
         }
     }

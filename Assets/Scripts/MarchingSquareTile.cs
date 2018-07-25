@@ -18,5 +18,5 @@ namespace Assets.Scripts
 
     }
 
-    enum MarchingSquareTileType { Empty, Single, Double, Triple, Quad}
+    public enum MarchingSquareTileType { Empty, Single, Double, Triple, Quad}
 }

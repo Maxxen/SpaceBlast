@@ -28,6 +28,7 @@ namespace Assets.Scripts
 
                 Edge start = workingSet[0];
                 Edge current = start;
+                //Sort the edges in connective order by finding their corresponding links, shared vertices
                 do // TODO, use linq sort to order edges, probably safer
                 {
                     loop.Add(current);
@@ -44,7 +45,7 @@ namespace Assets.Scripts
         public List<Vector2> MergeEdgeLoops(List<List<Edge>> loops)
         {
             Stack<List<Vector2>> vertexLoops = new Stack<List<Vector2>>();
-            loops.ForEach((List<Edge> loop) => vertexLoops.Push(loop.Select((Edge e) => e.v1).ToList()));
+            loops.ForEach((List<Edge> loop) => vertexLoops.Push(EdgeLoopToVertexLoop(loop)));
 
             while(vertexLoops.Count() != 1)
             {
@@ -53,6 +54,7 @@ namespace Assets.Scripts
 
                 List<Vector2> connectedLoop;
                 //Should be replaced with line-sweep "is inside" algorithm to see if loop is interior. Right now numerical guess will do.
+                //TODO, ORDER NESTED HOLES BY THEIR CONVEX HULL SPAN, IE CONNECT BASED ON LOOP HIERARCHY, NOT RANDOMLY LIKE NOW
                 if (firstLoop.Count > secondLoop.Count)
                     connectedLoop = ConnectEdgeLoops(firstLoop, secondLoop);
                 else
@@ -63,38 +65,110 @@ namespace Assets.Scripts
 
             return vertexLoops.Pop();
         }
+
+        //Should just return span, comparsion can be done in other method
+        private bool IsEdgeLoopInside(List<Vector2> outer, List<Vector2> inner)
+        {
+            //Calculate the two furthers points on the convex hull created by the edge loops
+            //In other words, the furthest point from the mean, and the furthest point from that point
+            //Inneficient and innacurate but simple method, calculate the max span of the edge loops, the larger span is the outer edgeloop
+            Vector2 outerMean = Vector2.zero;
+            outer.ForEach((v) => outerMean += v);
+            outerMean /= outer.Count();
+
+            Vector2 innerMean = Vector2.zero;
+            inner.ForEach((v) => innerMean += v);
+            innerMean /= inner.Count();
+
+            Vector2 outerV1 = outer.OrderByDescending((v) => Vector2.Distance(v, outerMean)).First();
+            Vector2 innerV1 = inner.OrderByDescending((v) => Vector2.Distance(v, innerMean)).First();
+
+            Vector2 outerV2 = outer.OrderByDescending((v) => Vector2.Distance(v, outerV1)).First();
+            Vector2 innerV2 = inner.OrderByDescending((v) => Vector2.Distance(v, innerV1)).First(); 
+                
+            return (Vector2.Distance(outerV1, outerV2) > Vector2.Distance(innerV1, innerV2));
+        }
+
+        public List<Vector2> EdgeLoopToVertexLoop(List<Edge> loop)
+        {
+            List<Vector2> vertexLoop = new List<Vector2>();
+            List<Vector2> messyVertexLoop = loop.Select((Edge e) => e.v1).ToList();
+
+            //Here we run along the loop and remove "unecessary" vertices along "straight lines"
+            //Look at three vertices at a time, if we come across a bend add the vertex, otherwise just move along.
+            vertexLoop.Add(messyVertexLoop[0]);
+            for(int i = 0; i < messyVertexLoop.Count - 2; i++)
+            {
+                var v1 = messyVertexLoop[i];
+                var v2 = messyVertexLoop[i + 1];
+                var v3 = messyVertexLoop[i + 2];
+
+                if(Vector2.Angle(v1, v2) != Vector2.Angle(v1, v3))
+                {
+                    vertexLoop.Add(v2);
+                }
+            }
+
+            return vertexLoop;
+        }
         
         public List<Vector2> ConnectEdgeLoops(List<Vector2> outerLoop, List<Vector2> innerLoop)
         {
             //Search inner polygon for rightmost vertex M (highest .x value)
-            Vector2 m = innerLoop.Aggregate((rightMost, vert) => rightMost.x > vert.x ? rightMost : vert);
+            Vector2 m = innerLoop.OrderByDescending((v) => v.x).First();
 
-            //Intersect ray shot from M with edges in outer loop right of M. If ray hits another vert, connect the two
             var potentialEdges = outerLoop.Where((v) => v.x >= m.x).ToList();
 
-            //If there is a vertex on the same y axis it must be visible from m
-            var rightmostCandidate = potentialEdges.Where((v) => v.y == m.y).Aggregate((leftMost, vert) => leftMost.x > vert.x ? leftMost : vert);
-            if(rightmostCandidate != null)
-            {
-                Vector2 p = rightmostCandidate;
-                //connect m and p
-            }
+            Vector2 intersectionPoint = Vector2.zero;
+            Vector2 closestVertexToIntersectionPoint = Vector2.zero;
 
             for(int i = 0; i < potentialEdges.Count() - 1; i++)
             {
                 var v1 = potentialEdges[i];
                 var v2 = potentialEdges[i + 1];
 
-                if(m.y < v1.y )
+                var intersection = RayLineIntersection(m, new Vector2(1, 0), v1, v2);
+                if(intersection != null)
+                {
+                    if(intersection.Value.x < intersectionPoint.x)
+                    {
+                        intersectionPoint = intersection.Value;
+                        closestVertexToIntersectionPoint = ((v1.x < v2.x) ? v1 : v2);
+                    }                
+                }
             }
-            //Else 
+
+            //Make triangle between Intersectionpoint, m and closestVertexToIntersectionPoint
+            //If any outerloop points are inside, then use them instead as m and repeat.
         }
         
-        public Vector2 RayLineIntersection(Vector2 rayOrigin, Vector2 rayDirection, Vector2 LineStart, Vector2 lineEnd)
+        public Vector2? RayLineIntersection(Vector2 rayOrigin, Vector2 rayDirection, Vector2 c, Vector2 d)
         {
-            
-            RaycastHit2D hit = Physics2D.Raycast(rayOrigin, rayDirection);
+            //Investigate max distance further
+            return LineSegmentIntersection(rayOrigin, rayOrigin + (rayDirection * (Math.Max(c.x - rayOrigin.x, d.x - rayOrigin.x)) * 2), c, d);
         }
+
+        //https://www.youtube.com/watch?v=c065KoXooSw
+        //https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
+        Vector2? LineSegmentIntersection(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
+        {
+            Vector2 r = b - a;
+            Vector2 s = d - c;
+
+            float dist = (r.x * s.y) - (r.y * s.x);
+            float u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / dist;
+            float t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / dist;
+
+            if(u < 0 || u > 1 || t < 0 || t > 1)
+            {
+                return null;
+            }
+            else
+            {
+                return a + (t * r);
+            }
+        }
+
     }
 
     struct Edge : IComparable

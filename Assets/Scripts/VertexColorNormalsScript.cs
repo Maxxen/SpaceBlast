@@ -21,8 +21,6 @@ public class VertexColorNormalsScript : MonoBehaviour {
         for(int v1 = 0; v1 < vertices.Length; v1++)
         {
             var pos = vertices[v1];
-            var uv = uvs[v1];
-            var n = normals[v1];
             bool duplicate = false;
 
             for(int v2 = 0; v2 < newVerts.Count; v2++)

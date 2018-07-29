@@ -12,10 +12,22 @@ namespace Assets.Scripts.ColliderBuilder
         {
             get
             {
-                return base[(index % this.Count)];
+                //perform the index wrapping
+                while (index < 0)
+                    index = Count + index;
+                if (index >= Count)
+                    index %= Count;
+
+                return base[index];
             }
             set
             {
+                //perform the index wrapping
+                while (index < 0)
+                    index = Count + index;
+                if (index >= Count)
+                    index %= Count;
+
                 base[index] = value;
             }
         }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UnityEngine;
 
 namespace Assets.Scripts
 {
@@ -14,6 +15,11 @@ namespace Assets.Scripts
         {
             X = x;
             Y = y;
+        }
+
+        public Vector2 ToVector2()
+        {
+            return new Vector2((float)X, (float)Y);
         }
 
         public static Point operator + (Point p1, Point p2)

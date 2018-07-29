@@ -10,37 +10,130 @@ namespace Assets.Scripts
 {
     class MapColliderBuilder
     {
+        Polygon floorPolygon;
+        List<Polygon> floorEdgeLoops;
 
         public MapColliderBuilder(List<Edge> inputEdges)
         {
-            var edgeLoops = SortEdgesByConnectivity(inputEdges);
-            var vertexLoops = edgeLoops.Select((l) => new Polygon(l)).ToList();
-            var mergedLoop = FoldPolygons(vertexLoops);
+            var edgeLoops = GroupAndSortEdges(inputEdges);
+            floorEdgeLoops = edgeLoops.Select((l) => new Polygon(l)).ToList();
+            floorPolygon = FoldPolygons(floorEdgeLoops);
             //TriangulateLoop
         }
 
-        public List<List<Edge>> SortEdgesByConnectivity(List<Edge> edges)
+        public Mesh GenerateWallColliders(int height)
         {
-            List<Edge> workingSet = edges;
-            List<List<Edge>> loops = new List<List<Edge>>();
-            while (workingSet.Any())
+            List<int> indices = new List<int>();
+            List<Vector3> verts = new List<Vector3>();
+
+            foreach(Polygon p in floorEdgeLoops)
             {
-                List<Edge> loop = new List<Edge>();
-
-                Edge start = workingSet[0];
-                Edge current = start;
-                //Sort the edges in connective order by finding their corresponding links, shared vertices
-                do // TODO, use linq sort to order edges, probably safer
+                //TODO, dont add duplicate vertices
+                for(int i = 0; i < p.verts.Count; i++)
                 {
-                    loop.Add(current);
-                    workingSet.Remove(current);
-                    current = workingSet.Find((Edge other) => other.v1 == current.v2);
-                }
-                while (current != start);
+                    var index = verts.Count;
 
-                loops.Add(loop);
+                    var p1 = p.verts[i];
+                    var p2 = p.verts[i + 1];
+
+                    var v0 = new Vector3(p1.x, 0, p1.y);
+                    var v1 = new Vector3(p1.x, height, p1.y);
+                    var v2 = new Vector3(p2.x, height, p2.y);
+                    var v3 = new Vector3(p2.x, 0, p2.y);
+
+                    verts.Add(v0);
+                    verts.Add(v1);
+                    verts.Add(v2);
+                    verts.Add(v3);
+
+                    //Add triangles in clockwise order
+                    if (p.ClockWiseWindingOrder)
+                    {
+                        indices.Add(index);
+                        indices.Add(index + 1);
+                        indices.Add(index + 2);
+                        indices.Add(index + 2);
+                        indices.Add(index + 3);
+                        indices.Add(index);
+                    }
+                    else
+                    {
+                        indices.Add(index);
+                        indices.Add(index + 3);
+                        indices.Add(index + 2);
+                        indices.Add(index + 2);
+                        indices.Add(index + 1);
+                        indices.Add(index);
+                    }
+                }
             }
-            return loops;
+
+            return new Mesh { vertices = verts.ToArray(), triangles = indices.ToArray() };
+        }
+
+        public void TestSort()
+        {
+            var randomCircularEdgeList = new List<Edge>();
+            randomCircularEdgeList.Add(new Edge(new Vector2(0, 0), new Vector2(1, 0)));
+            randomCircularEdgeList.Add(new Edge(new Vector2(-1, 0), new Vector2(0, 0)));
+            randomCircularEdgeList.Add(new Edge(new Vector2(1, 0), new Vector2(2, 0)));
+            randomCircularEdgeList.Add(new Edge(new Vector2(2, 0), new Vector2(-1, 0)));
+
+            var test1 = GroupAndSortEdges(randomCircularEdgeList);
+
+
+
+            //var tripleSquare = new List<Edge>();
+            //tripleSquare.Add(new MarchingSquareTile(11).GetEdge(new Vector3(1, 0, 0)).Value);
+            //tripleSquare.Add(new MarchingSquareTile(7).GetEdge(new Vector3(0, 0, 0)).Value);
+            //tripleSquare.Add(new MarchingSquareTile(14).GetEdge(new Vector3(0, 0, 1)).Value);
+            //tripleSquare.Add(new MarchingSquareTile(13).GetEdge(new Vector3(1, 0, 1)).Value);
+
+            //var test2 = GroupAndSortEdges(tripleSquare);
+
+        }
+
+        public List<List<Edge>> GroupAndSortEdges(List<Edge> edges)
+        {
+            List<List<Edge>> edgeLoops = new List<List<Edge>>();
+            var lookup = new Dictionary<Vector2, Edge>(edges.Capacity);
+            edges.ForEach((e) => lookup.Add(e.v1, e));
+
+            while (edges.Any())
+            {
+                Edge start = edges.First();
+                Edge current = start;
+                Edge next;
+                
+                List<Edge> currentEdgeLoop = new List<Edge>();
+
+                do
+                {
+                    edges.Remove(current);
+                    currentEdgeLoop.Add(current);
+                    if(lookup.TryGetValue(current.v2, out next))
+                    {
+                        current = next;
+                    }
+                    else
+                    {
+                        throw new Exception("Edges does not from a loop!, no connection at: " + current.v2);
+                    }
+
+                } while (current != start);
+
+                //while(lookup.TryGetValue(current.v2, out other))
+                //{
+                //    edges.Remove(other);
+                //    currentEdgeLoop.Add(other);
+                //    current = other;
+                //}
+
+                edgeLoops.Add(currentEdgeLoop);
+                
+            }
+
+            return edgeLoops;
         }
 
               
@@ -91,21 +184,21 @@ namespace Assets.Scripts
             else
             {
                 //Get reflex and convex vertices
-                List<Vector2> reflex;
-                List<Vector2> convex;
+                List<Vector2> reflex = new List<Vector2>();
+                List<Vector2> convex = new List<Vector2>();
 
-                inner.GetConvexAndReflex(out convex, out reflex);
+                inner.GetConvexAndReflex(convex, reflex);
  
                 //Look for reflex inner loop points inside M I P triangle
                 var inside = reflex.Where((v) => IsInTriangle(v, M, I, P));
-                if(inside.Count() == 0)
+                if(!inside.Any())
                 {
                     //Connect loops with M and P
                     return CreatePolygonConnection(inner.verts.IndexOf(M), outer.verts.IndexOf(P), inner, outer);
                 }
                 else
                 {
-                    //Find reflex vert R that minimizes the angle between (1,0) and the line {m, v} 
+                    //Find reflex vert R inside triangle that minimizes the angle between (1,0) and the line {m, v} 
                     //TODO replace Vector2.angle with dot product method
                     var r = inside.OrderByDescending((v) => Vector2.Angle(new Vector2(1, 0), v - M)).Last();
 
@@ -113,8 +206,6 @@ namespace Assets.Scripts
                     return CreatePolygonConnection(inner.verts.IndexOf(r), outer.verts.IndexOf(P), inner, outer);
                 }
             }
-            //Make triangle between Intersectionpoint, m and closestVertexToIntersectionPoint
-            //If any outerloop points are inside, then use them instead as m and repeat.
         }
 
         //Needs testing
@@ -147,10 +238,10 @@ namespace Assets.Scripts
 
         private void TriangulateByEarClip(Polygon polygon)
         {
-            List<Vector2> convex;
-            List<Vector2> reflex;
+            List<Vector2> convex = new List<Vector2>();
+            List<Vector2> reflex = new List<Vector2>();
 
-            polygon.GetConvexAndReflex(out convex, out reflex);
+            polygon.GetConvexAndReflex(convex, reflex);
             Loop<Vector2> ears = new Loop<Vector2>();
 
             for(int i = 0; i < polygon.verts.Count; i++)

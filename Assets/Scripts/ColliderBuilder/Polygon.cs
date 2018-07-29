@@ -9,7 +9,6 @@ namespace Assets.Scripts.ColliderBuilder
     class Polygon : IComparable<Polygon>
     {
         //TODO, both Loop and List should be LinkedList
-        //TODO out lists are not necessary.
         public readonly Loop<Vector2> verts;
         Loop<Vector2> earVerts;
         List<Vector2> convexVerts;
@@ -26,7 +25,7 @@ namespace Assets.Scripts.ColliderBuilder
         public Polygon(List<Vector2> verts)
         {
             this.verts = (Loop<Vector2>)verts;
-            CalculateWindingOrder();
+            ReCalculateWindingOrder();
         }
        
         //Sorts in clockwise order
@@ -39,27 +38,30 @@ namespace Assets.Scripts.ColliderBuilder
             //Here we run along the loop and remove "unecessary" vertices along "straight lines"
             //Look at three vertices at a time, if we come across a bend add the vertex, otherwise just move along.
             vertexLoop.Add(messyVertexLoop[0]);
+
             var v1 = messyVertexLoop[0];
             for(int i = 1; i < messyVertexLoop.Count - 1; i++)
             {
                 var v2 = messyVertexLoop[i];
                 var v3 = messyVertexLoop[i + 1];
 
-                if(Vector2.Angle(v1, v2) != Vector2.Angle(v1, v3))
+                //If the dot product of the lines (v1,v2) and (v2,v3) is 1, they are parallel, 
+                //Which means that v2 is on the straight line (v1, v3)
+                //Thus we dont need to add v2
+                if(Vector2.Dot(v1 - v2, v2 - v3) != 1)
                 {
                     vertexLoop.Add(v2);
                 }
+
+                v1 = v2;
             }
 
             return vertexLoop;
         }
 
         //Needs testing
-        public void GetConvexAndReflex(out List<Vector2> convex, out List<Vector2> reflex)
+        public void GetConvexAndReflex(List<Vector2> convex, List<Vector2> reflex)
         {
-            convex = new List<Vector2>();
-            reflex = new List<Vector2>();
-
             for(int i = 0; i < verts.Count; i++)
             {
                 var a = verts[i - 1];
@@ -97,14 +99,15 @@ namespace Assets.Scripts.ColliderBuilder
         {
             ClockWiseWindingOrder = !ClockWiseWindingOrder;
             verts.Reverse();
-            earVerts.Reverse();
-            convexVerts.Reverse();
-            reflexVerts.Reverse();
+            //earVerts.Reverse();
+            //convexVerts.Reverse();
+            //reflexVerts.Reverse();
         }
 
-        public void CalculateWindingOrder()
+        public void ReCalculateWindingOrder()
         {
-            ClockWiseWindingOrder = ClockwiseWinding(verts);
+            if (ClockWiseWindingOrder != ClockwiseWinding(verts))
+                ReverseWindingOrder();
         }
 
         private bool ClockwiseWinding(Loop<Vector2> loop)
@@ -149,7 +152,7 @@ namespace Assets.Scripts.ColliderBuilder
             Vector2 point = verts.First();
             int intersections = 0;
             List<Vector2> potentialEdges = other.verts.Where((v) => v.x > point.x).ToList();
-            float maxDistance = potentialEdges.OrderByDescending((v) => v.x).First().x + 10;
+            float maxDistance = potentialEdges.OrderByDescending((v) => v.x).FirstOrDefault().x + 10;
             for(int i = 0; i < potentialEdges.Count - 1; i++)
             {
                 Vector2 e1 = potentialEdges[i];

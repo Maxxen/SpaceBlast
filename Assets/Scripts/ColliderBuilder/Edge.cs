@@ -15,7 +15,7 @@ namespace Assets.Scripts.ColliderBuilder
             this.v2 = v2;
         }
 
-        public int CompareTo(Edge other) // TODO, Use linq sort to order edges
+        public int CompareTo(Edge other) 
         {
             if (this.v1 == other.v2)
                 return 1;

@@ -23,6 +23,20 @@ namespace Assets.Scripts
 
         }
 
+        public TileMap()
+        {
+            tiles = new Tile[20, 20];
+            this.width = 20;
+            this.height = 20;
+            this.random = new Random(10);
+            Room r = new Room(new Rectangle(new Point(0, 0), new Point(20, 20)));
+            Rooms = new List<Room>();
+            Rooms.Add(r);
+            Fill(r.Dimensions, Tile.Wall);
+            Fill(r.Dimensions.Inset(2), Tile.Floor);
+            Fill(r.Dimensions.Inset(8), Tile.Wall);
+        }
+
         public void SetTile(int x, int y, Tile tile)
         {
             if (x >= width || y >= height || x <= 0 || y <= 0)
@@ -69,45 +83,7 @@ namespace Assets.Scripts
 
             int msTile = (int)nw * 1 + (int)ne * 2 + (int)se * 4 + (int)sw * 8;
 
-            switch (msTile)
-            {
-                case 0:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Empty);
-                case 1:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Single);
-                case 2:
-                    return new MarchingSquareTile(90, MarchingSquareTileType.Single);
-                case 3:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Double);
-                case 4:
-                    return new MarchingSquareTile(180, MarchingSquareTileType.Single);
-                case 5:
-                    //Diagonal
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Quad);
-                case 6:
-                    return new MarchingSquareTile(90, MarchingSquareTileType.Double);
-                case 7:
-                    return new MarchingSquareTile(90, MarchingSquareTileType.Triple);
-                case 8:
-                    return new MarchingSquareTile(270, MarchingSquareTileType.Single);
-                case 9:
-                    return new MarchingSquareTile(270, MarchingSquareTileType.Double);
-                case 10:
-                    //Diagonal
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Quad);
-                case 11:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Triple);
-                case 12:
-                    return new MarchingSquareTile(180, MarchingSquareTileType.Double);
-                case 13:
-                    return new MarchingSquareTile(270, MarchingSquareTileType.Triple);
-                case 14:
-                    return new MarchingSquareTile(180, MarchingSquareTileType.Triple);
-                case 15:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Quad);
-                default:
-                    return new MarchingSquareTile(0, MarchingSquareTileType.Empty);
-            }
+            return new MarchingSquareTile(msTile);
         }
 
         public void GenerateMap()

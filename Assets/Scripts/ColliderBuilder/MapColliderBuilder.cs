@@ -72,12 +72,9 @@ namespace Assets.Scripts
             {
                 //p.SetWindingOrder(WindingOrder.cw);
                 //TODO, dont add duplicate vertices
-                for (int i = 0; i < p.verts.Count; i++)
+                p.verts.ForEachPair((p1, p2) =>
                 {
                     var index = verts.Count;
-
-                    var p1 = p.verts[i];
-                    var p2 = p.verts[i + 1];
 
                     var v0 = new Vector3(p1.x, 0, p1.y);
                     var v1 = new Vector3(p1.x, height, p1.y);
@@ -108,7 +105,9 @@ namespace Assets.Scripts
                         indices.Add(index + 1);
                         indices.Add(index);
                     }
-                }
+
+
+                });
             }
 
             return new Mesh { vertices = verts.ToArray(), triangles = indices.ToArray() };
@@ -122,15 +121,21 @@ namespace Assets.Scripts
         /// <returns>The triangulated mesh</returns>
         public Mesh GenerateFloorMesh()
         {
-            //TODO: sort into a binary tree, should be faster and easier to connect)
-            wallPolygons.Sort();
+            if(wallPolygons.Count > 1)
+            {
+                //TODO: sort into a binary tree, should be faster and easier to connect)
+                wallPolygons.Sort();
 
-            //Aggregate works as a Fold, we continue to merge smaller polgyons into the 
-            //largest polygon until there are none left.
+                //Aggregate works as a Fold, we continue to merge smaller polgyons into the 
+                //largest polygon until there are none left.
 
-            var floorPolygon = wallPolygons.Aggregate((outer, inner) => ConnectPolygons(outer, inner));
-            floorPolygon = ConnectPolygons(floorPolygon, wallPolygons.Last());
-            return floorPolygon.TriangulateByEarClip();
+                var floorPolygon = wallPolygons.Aggregate((outer, inner) => ConnectPolygons(outer, inner));
+                return floorPolygon.TriangulateByEarClip();
+            }
+            else
+            {
+                return wallPolygons[0].TriangulateByEarClip();
+            }
         }
 
         /// <summary>
@@ -145,10 +150,7 @@ namespace Assets.Scripts
             Vector2 m = inner.verts.OrderByDescending((v) => v.x).First();
             Vector2 p = outer.verts.Where((v) => v.x >= m.x).OrderByDescending((v) => (v - m).sqrMagnitude).Last();
 
-            var innerIndex = inner.verts.IndexOf(m);
-            var outerIndex = outer.verts.IndexOf(p);
-
-            return CreatePolygonConnection(innerIndex, outerIndex, inner, outer);
+            return CreatePolygonConnection(m, p, inner, outer);
         }
 
         /// </summary>
@@ -159,35 +161,28 @@ namespace Assets.Scripts
         /// <param name="inner"></param>
         /// <param name="outer"></param>
         /// <returns></returns>
-        private Polygon CreatePolygonConnection(int innerIndex, int outerIndex, Polygon inner, Polygon outer)
+        private Polygon CreatePolygonConnection(Vector2 innerVert, Vector2 outerVert, Polygon inner, Polygon outer)
         {
             //Make sure inner polygon have reverse winding order
             if (inner.WindingOrder == outer.WindingOrder)
                 inner.ReverseWindingOrder();
 
-            //Shift inner polygon vertices to start with desirded connection vertex
-            var innerShifted = new List<Vector2>();
-            for (int i = innerIndex; i < inner.verts.Count + innerIndex; i++)
-            {
-                innerShifted.Add(inner.verts[i]);
-            }
+            //Shift inner polygon vertices to start with desired connection vertex
+            while (inner.verts.First.Value != innerVert)
+                inner.verts.RotateLeft();
 
-            var newVerts = new Loop<Vector2>();
-            for (int i = 0; i < outer.verts.Count; i++)
-            {
-                newVerts.Add(outer.verts[i]);
-                if (i == outerIndex)
-                {
-                    for(int j = 0; j < innerShifted.Count; j++)
-                    {
-                        newVerts.Add(innerShifted[j]);
-                    }
-                    newVerts.Add(innerShifted[0]);
-                    newVerts.Add(outer.verts[i]);
-                }
-            }
 
-            return new Polygon(newVerts);
+            //Shift outer polygon vertices to end with desired connection vertex
+            while (outer.verts.Last.Value != outerVert)
+                outer.verts.RotateLeft();
+
+            //Add the duplicate verts in order to make sure edge is two sided.
+            inner.verts.AddLast(inner.verts.First.Value);
+            outer.verts.AddFirst(outer.verts.Last.Value);
+
+            outer.verts.Concat(inner.verts);
+
+            return new Polygon(outer.verts);
         }
 
         public static bool IsIntersecting(Vector2 a, Vector2 b, Vector2 c, Vector2 d)

@@ -43,7 +43,7 @@ public class Map : MonoBehaviour {
 
         tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1, random);
         tileMap.GenerateMap();
-   
+
         GenerateChunkMeshes();
         SpawnPlayerAndEnemies();
     }

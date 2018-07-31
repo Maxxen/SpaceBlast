@@ -32,6 +32,37 @@ namespace Assets.Scripts.ColliderBuilder
             }
         }
 
+        public CyclicalLinkedList()
+        {
+
+        }
+
+        public void Remove(T item)
+        {
+            var node = Find(item);
+            if(node != null)
+            {
+                node.Prev.Next = node.Next;
+                node.Next.Prev = node.Prev;
+
+                if (node == First)
+                    First = node.Next;
+                else if (node == Last)
+                    Last = Last.Prev;
+
+                this.Count--;
+            }
+            //Else throw exception?
+        }
+
+        public void RemoveFirst()
+        {
+            First = First.Next;
+            First.Prev = Last;
+            Last.Next = First;
+            this.Count--;
+        }
+
         public void AddLast(T item)
         {
             this.Count++;
@@ -54,6 +85,45 @@ namespace Assets.Scripts.ColliderBuilder
             }
         }
 
+        public void AddFirst(T item)
+        {
+            this.Count++;
+            if(First == null)
+            {
+                First = new CyclicalNode<T>(item);
+                Last = First;
+                First.Next = Last;
+                Last.Prev = First;
+            }
+            else
+            {
+                var node = new CyclicalNode<T>(item);
+                First.Prev = node;
+                node.Prev = Last;
+                node.Next = First;
+                Last.Next = node;
+                First = node;
+            }
+        }
+
+        public void RotateLeft()
+        {
+            First = First.Next;
+            Last = Last.Next;
+        }
+
+        public void Concat(CyclicalLinkedList<T> other)
+        {
+            Last.Next = other.First;
+            other.First.Prev = Last;
+
+            First.Prev = other.Last;
+            other.Last.Next = First;
+
+            Count += other.Count;
+        }
+
+
         public IEnumerator<T> GetEnumerator()
         {
             CyclicalNode<T> current = First;
@@ -70,7 +140,7 @@ namespace Assets.Scripts.ColliderBuilder
             return GetEnumerator();
         }
 
-        public void ForEachTriple( Action<T, T, T> action)
+        public void ForEachTriplet( Action<T, T, T> action)
         {
             CyclicalNode<T> current = First;
             do
@@ -79,6 +149,45 @@ namespace Assets.Scripts.ColliderBuilder
                 current = current.Next;
             }
             while (current != First);
+        }
+
+        public void ForEachPair( Action<T, T> action)
+        {
+            CyclicalNode<T> current = First;
+            do
+            {
+                action(current.Value, current.Next.Value);
+                current = current.Next;
+            }
+            while (current != First);
+        }
+
+        public void For( Action<T, int> action)
+        {
+            int index = 0;
+            CyclicalNode<T> current = First;
+            do
+            {
+                action(current.Value, index);
+                current = current.Next;
+                index++;
+            }
+            while (current != First);
+        }
+
+        public CyclicalNode<T> Find(T item)
+        {
+            CyclicalNode<T> current = First;
+
+            do
+            {
+                if (current.Value.Equals(item))
+                    return current;
+                else
+                    current = current.Next;
+            }
+            while (current != First);
+            return null;
         }
 
         public int IndexOf(T item)

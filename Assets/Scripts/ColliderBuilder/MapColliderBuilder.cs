@@ -125,7 +125,6 @@ namespace Assets.Scripts
             {
                 //TODO: sort into a binary tree, should be faster and easier to connect)
                 wallPolygons.Sort();
-
                 //Aggregate works as a Fold, we continue to merge smaller polgyons into the 
                 //largest polygon until there are none left.
 
@@ -171,14 +170,13 @@ namespace Assets.Scripts
             while (inner.verts.First.Value != innerVert)
                 inner.verts.RotateLeft();
 
-
             //Shift outer polygon vertices to end with desired connection vertex
             while (outer.verts.Last.Value != outerVert)
                 outer.verts.RotateLeft();
 
             //Add the duplicate verts in order to make sure edge is two sided.
-            inner.verts.AddLast(inner.verts.First.Value);
             outer.verts.AddFirst(outer.verts.Last.Value);
+            inner.verts.AddFirst(inner.verts.Last.Value);
 
             outer.verts.Concat(inner.verts);
 

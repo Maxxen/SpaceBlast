@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using Assets.Scripts.ColliderBuilder;
+using UnityEngine.AI;
 
 public class Map : MonoBehaviour {
 
@@ -39,11 +40,11 @@ public class Map : MonoBehaviour {
     void Start ()
     {
         random = new System.Random(1337);
-        Debug.Log(chunksX * chunkWidth);
+
         tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1, random);
         tileMap.GenerateMap();
+   
         GenerateChunkMeshes();
-        Debug.Log("asd");
         SpawnPlayerAndEnemies();
     }
 
@@ -96,13 +97,6 @@ public class Map : MonoBehaviour {
                         var edge = mst.GetEdge(new Vector3(xPos, 0, yPos));
                         if (edge != null)
                             edges.Add(edge.Value);
-
-                        //if(tile != tile_4)
-                        //{
-                        //    //The "filled" tile_4 doesnt have a collider, so we cant just create a parallell array to the geometry combines.
-                        //    //We could further optimize this list by merging adjacent identical faces, (greedy meshing), but thats for another time.
-                        //    colliderCombines.Add(new CombineInstance() { mesh = tile.GetComponent<MeshCollider>().sharedMesh, transform = tileTransform });
-                        //}
                     }
                 }
 
@@ -119,11 +113,39 @@ public class Map : MonoBehaviour {
             }
         }
 
-        var colliderPolygon = new MapColliderBuilder(edges).GenerateWallColliders(2);
-        Debug.Log(colliderPolygon.vertices);
-        this.GetComponent<MeshCollider>().sharedMesh = new Mesh();
-        this.GetComponent<MeshCollider>().sharedMesh.Clear();
-        this.GetComponent<MeshCollider>().sharedMesh = colliderPolygon;
+        var colliderPolygon = new MapColliderBuilder(edges);
+
+        var watch1 = System.Diagnostics.Stopwatch.StartNew();
+        var wallmesh = colliderPolygon.GenerateWallMesh(2);
+        watch1.Stop();
+
+        var watch2 = System.Diagnostics.Stopwatch.StartNew();
+        var floorMesh = colliderPolygon.GenerateFloorMesh();
+        watch2.Stop();
+
+        Debug.Log("Wall creation: " + watch1.ElapsedMilliseconds);
+        Debug.Log("Floor creation: " + watch2.ElapsedMilliseconds);
+
+
+        CombineInstance[] colliders = new CombineInstance[2];
+        colliders[0].mesh = wallmesh;
+        colliders[0].transform = Matrix4x4.identity;
+        colliders[1].mesh = floorMesh;
+        colliders[1].transform = Matrix4x4.identity;
+
+        var compositeMesh = new Mesh();
+        compositeMesh.CombineMeshes(colliders);
+
+        Debug.Log(floorMesh.vertexCount);
+        this.GetComponent<MeshCollider>().sharedMesh = compositeMesh;
+
+        //Navmesh
+        var watch3 = System.Diagnostics.Stopwatch.StartNew();
+        var surface = GetComponent<NavMeshSurface>();
+        surface.BuildNavMesh();
+
+        watch3.Stop();
+        Debug.Log("Navmesh creation: " + watch3.ElapsedMilliseconds);
     }
 
     public void SpawnPlayerAndEnemies()

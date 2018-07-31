@@ -6,38 +6,39 @@ using UnityEngine;
 
 namespace Assets.Scripts.ColliderBuilder
 {
+    enum WindingOrder { cw, ccw }
     class Polygon : IComparable<Polygon>
     {
         //TODO, both Loop and List should be LinkedList
-        public readonly Loop<Vector2> verts;
-        Loop<Vector2> earVerts;
-        List<Vector2> convexVerts;
-        List<Vector2> reflexVerts;
+        public readonly CyclicalLinkedList<Vector2> verts;
+        public CyclicalLinkedList<Vector2> ears;
+        public Loop<Vector2> reflex;
+        public Loop<Vector2> convex;
 
-        public bool ClockWiseWindingOrder { get; private set; }
+        public WindingOrder WindingOrder { get; private set; }
 
         public Polygon(List<Edge> edges)
         {
             this.verts = EdgeListToVertexLoop(edges);
-            this.ClockWiseWindingOrder = true;
+            RecalculateWindingOrder();
         }
 
         public Polygon(List<Vector2> verts)
         {
-            this.verts = (Loop<Vector2>)verts;
-            ReCalculateWindingOrder();
+            this.verts = new CyclicalLinkedList<Vector2>(verts);
+            RecalculateWindingOrder();
         }
        
         //Sorts in clockwise order
-        public Loop<Vector2> EdgeListToVertexLoop(List<Edge> edgeList)
+        public LinkedLoop<Vector2> EdgeListToVertexLoop(List<Edge> edgeList)
         {
-            Loop<Vector2> vertexLoop = new Loop<Vector2>();
+            LinkedLoop<Vector2> vertexLoop = new LinkedLoop<Vector2>();
             List<Vector2> messyVertexLoop = edgeList.Select((Edge e) => e.v1).ToList();
             messyVertexLoop.Add(edgeList.Last().v2);
 
-            //Here we run along the loop and remove "unecessary" vertices along "straight lines"
-            //Look at three vertices at a time, if we come across a bend add the vertex, otherwise just move along.
-            vertexLoop.Add(messyVertexLoop[0]);
+            // Here we run along the loop and remove "unecessary" vertices along "straight lines"
+            // Look at three vertices at a time, if we come across a bend add the vertex, otherwise just move along.
+            vertexLoop.AddLast(messyVertexLoop[0]);
 
             var v1 = messyVertexLoop[0];
             for(int i = 1; i < messyVertexLoop.Count - 1; i++)
@@ -45,90 +46,70 @@ namespace Assets.Scripts.ColliderBuilder
                 var v2 = messyVertexLoop[i];
                 var v3 = messyVertexLoop[i + 1];
 
-                //If the dot product of the lines (v1,v2) and (v2,v3) is 1, they are parallel, 
-                //Which means that v2 is on the straight line (v1, v3)
-                //Thus we dont need to add v2
+                // If the dot product of the lines (v1,v2) and (v2,v3) is 1, they are parallel, 
+                // which means that v2 is on the straight line (v1, v3)
+                // thus we dont need to add v2 to preserve the shape of the polygon
                 if(Vector2.Dot(v1 - v2, v2 - v3) != 1)
                 {
-                    vertexLoop.Add(v2);
+                    vertexLoop.AddLast(v2);
                 }
-
                 v1 = v2;
             }
 
             return vertexLoop;
         }
 
-        //Needs testing
-        public void GetConvexAndReflex(List<Vector2> convex, List<Vector2> reflex)
-        {
-            for(int i = 0; i < verts.Count; i++)
-            {
-                var a = verts[i - 1];
-                var b = verts[i];
-                var c = verts[i + 1];
-
-                if (IsConvex(a, b, c))
-                    convex.Add(b);
-                else
-                    reflex.Add(b);
-            }
-        }
-
-        public bool IsConvex(int index)
-        {
-            var a = verts[index - 1];
-            var b = verts[index];
-            var c = verts[index + 1];
-
-            return IsConvex(a, b, c);
-        }
-
-        public bool IsConvex(Vector2 vert)
-        {
-            var index = verts.IndexOf(vert);
-            return IsConvex(index);
-        }
-
-        public bool IsConvex(Vector2 a, Vector2 b, Vector2 c)
-        {
-            return ((b.x - a.x) * (c.y - b.y) - (c.x - b.x) * (b.y - a.y) > 0);
-        }
 
         public void ReverseWindingOrder()
         {
-            ClockWiseWindingOrder = !ClockWiseWindingOrder;
+            WindingOrder = WindingOrder == WindingOrder.cw ? WindingOrder.ccw : WindingOrder.cw;
             verts.Reverse();
             //earVerts.Reverse();
             //convexVerts.Reverse();
             //reflexVerts.Reverse();
         }
 
-        public void ReCalculateWindingOrder()
+        public void SetWindingOrder(WindingOrder order)
         {
-            if (ClockWiseWindingOrder != ClockwiseWinding(verts))
+            if(order == WindingOrder)
+            {
+                return;
+            }
+            else
+            {
                 ReverseWindingOrder();
+            }
         }
 
-        private bool ClockwiseWinding(Loop<Vector2> loop)
+        private WindingOrder RecalculateWindingOrder()
         {
             int cw = 0;
             int ccw = 0;
-            var v1 = loop.First();
-            for(int i = 1; i < loop.Count; i++)
-            {
-                var v2 = loop[i];
-                var v3 = loop[i + 1];
+            //for(int i = 1; i < verts.Count; i++)
+            //{
 
-                if (ClockwiseWinding(v1, v2, v3))
-                    cw++;
-                else
-                    ccw++;
+            //    var v1 = verts[i - 1];
+            //    var v2 = verts[i];
+            //    var v3 = verts[i + 1];
 
-                v1 = v2;
-            }
+            //    if (ClockwiseWinding(v1, v2, v3))
+            //        cw++;
+            //    else
+            //        ccw++;
 
-            return cw > ccw;
+            //    v1 = v2;
+            //}
+
+            verts.ForEachTriple((v1, v2, v3) => 
+                {
+                    if (ClockwiseWinding(v1, v2, v3))
+                        cw++;
+                    else
+                        ccw++;
+                }
+            );
+
+            return cw > ccw ? WindingOrder.cw : WindingOrder.ccw;
         }
 
         //Needs testing
@@ -158,7 +139,7 @@ namespace Assets.Scripts.ColliderBuilder
                 Vector2 e1 = potentialEdges[i];
                 Vector2 e2 = potentialEdges[i + 1];
 
-                if(Loop<Vector2>.IsIntersecting(point, point + new Vector2(0, maxDistance), e1, e2)){
+                if(MapColliderBuilder.IsIntersecting(point, point + new Vector2(0, maxDistance), e1, e2)){
                     intersections++;
                 }
             }
@@ -166,12 +147,216 @@ namespace Assets.Scripts.ColliderBuilder
             intersections = intersections % 2;
             //Odd intersections, must be inside
             if (intersections == 1)
-                return -1;
+                return 1;
             //Even intersection or no intersection, must be bigger
             if (intersections == 0)
-                return 1;
+                return -1;
 
             return 0;
         }
+
+
+        // https://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf
+        public Mesh TriangulateByEarClip()
+        {
+            List<int> indices = new List<int>();
+            List<Vector2> originialVerts = new List<Vector2>(verts);
+
+            CalculateConvexAndReflex();
+            CalculateEars();
+
+            while(verts.Count > 3 && ears.Count > 0)
+            {
+                ClipEar(indices, originialVerts);
+            }
+
+            if (verts.Count == 3)
+            {
+                indices.Add(originialVerts.IndexOf(verts[0]));
+                indices.Add(originialVerts.IndexOf(verts[1]));
+                indices.Add(originialVerts.IndexOf(verts[2]));
+            }
+
+            var meshTris = indices.ToArray();
+            var meshVerts = originialVerts.ConvertAll((v) => new Vector3(v.x, 0, v.y)).ToArray();
+
+            return new Mesh() { vertices = meshVerts, triangles = meshTris };
+        }
+
+        void ClipEar(List<int> indices, List<Vector2> originialVerts)
+        {
+            var ear = ears[0];
+            var prev = verts[verts.IndexOf(ear) - 1];
+            var next = verts[verts.IndexOf(ear) + 1];
+
+            indices.Add(originialVerts.IndexOf(ear));
+            indices.Add(originialVerts.IndexOf(next));
+            indices.Add(originialVerts.IndexOf(prev));
+
+            ears.RemoveAt(0);
+            verts.RemoveAt(verts.IndexOf(ear));
+
+            UpdateVertex(prev);
+            UpdateVertex(next);
+
+        }
+
+        void UpdateVertex(Vector2 vertex)
+        {        
+            if (reflex.Contains(vertex))
+            {
+                if (IsConvex(vertex))
+                {
+                    reflex.Remove(vertex);
+                    convex.Add(vertex);
+                }
+            }
+
+            if (convex.Contains(vertex))
+            {
+                bool wasEar = ears.Contains(vertex);
+                bool isNowEar = IsEar(vertex);
+
+                if (wasEar && !isNowEar)
+                {
+                    ears.Remove(vertex);
+                }
+                else if (!wasEar && isNowEar)
+                {
+                    ears.AddFirst(vertex);
+                }
+                //else, still ear
+            }
+        }
+
+
+        public bool IsConvex(Vector2 vertex)
+        {
+            var v1 = verts[verts.IndexOf(vertex) - 1];
+            var v3 = verts[verts.IndexOf(vertex) + 1];
+            return IsConvex(v1, vertex, v3);
+
+        }
+
+        public bool IsConvex(int index)
+        {
+            var a = verts[index - 1];
+            var b = verts[index];
+            var c = verts[index + 1];
+
+            return IsConvex(a, b, c);
+        }
+
+        public bool IsConvex(Vector2 a, Vector2 b, Vector2 c)
+        {
+            //return ((b.x - a.x) * (c.y - b.y) - (c.x - b.x) * (b.y - a.y) <= 0);
+
+            Vector2 d1 = (c - a).normalized;
+            Vector2 d2 = (b - c).normalized;
+            Vector2 n2 = new Vector2(-d2.y, d2.x);
+
+            return (Vector2.Dot(d1, n2) <= 0f);
+        }
+
+        // Needs testing
+        // It is sufficient to consider only reflex vertices in the triangle containment test.
+        public void CalculateConvexAndReflex()
+        {
+            reflex = new Loop<Vector2>();
+            convex = new Loop<Vector2>();
+            for(int i = 0; i < verts.Count; i++)
+            {
+                if (IsConvex(verts[i]))
+                    convex.Add(verts[i]);
+                else
+                    reflex.Add(verts[i]);
+
+                //var a = verts[i - 1];
+                //var b = verts[i];
+                //var c = verts[i + 1];
+
+                //if (IsConvex(a, b, c))
+                //    convex.Add(b);
+                //else
+                //    reflex.Add(b);
+            }
+        }
+
+        bool IsEar (Vector2 vertex)
+        {
+            var v1 = verts[verts.IndexOf(vertex) - 1];
+            var v3 = verts[verts.IndexOf(vertex) + 1];
+
+            return IsEar(v1, vertex, v3);
+        }
+
+
+        bool IsEar(Vector2 a, Vector2 b, Vector2 c)
+        {
+            foreach(Vector2 v in reflex)
+            {
+                if(v == a || v == b || v == c)
+                {
+                    continue;
+                }
+                if (IsInTriangle(v, a, b, c))
+                    return false;
+            }
+            return true;
+            //return !reflex.Any((v) => IsInTriangle(v, a, b, c) && !(v == a || v == b || v == c));
+        }
+
+        //Construct list with all ear vertices.
+        public void CalculateEars()
+        {
+            ears = new LinkedLoop<Vector2>();
+            for(int i = 0; i < convex.Count; i++)
+            {
+                var v2 = convex[i];
+                var v1 = verts[verts.IndexOf(v2) - 1];
+                var v3 = verts[verts.IndexOf(v2) + 1];
+
+                if (IsEar(v1, v2, v3))
+                {
+                    ears.AddLast(v2);
+                }
+            }
+        }
+
+        // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle 
+        public bool IsInTriangle(Vector2 v, Vector2 a, Vector2 b, Vector2 c)
+        {
+            return PointInTriangle(v, a, b, c);
+            //var s = a.y * c.x - a.x * c.y + (c.y - a.y) * v.x + (a.x - c.x) * v.y;
+            //var t = a.x * b.y - a.y * b.y + (a.y - b.y) * v.x + (b.x - a.x) * v.y;
+
+            //if ((s < 0) != (t < 0))
+            //    return false;
+
+            //var A = -b.y * c.x + a.y * (c.x - b.x) + a.x * (b.y - c.y) + b.x * c.y;
+            //if (A < 0.0)
+            //{
+            //    s = -s;
+            //    t = -t;
+            //    A = -A;
+            //}
+            //return s > 0 && t > 0 && (s + t) <= A;
+        }
+        float sign (Vector2 p1, Vector2 p2, Vector2 p3)
+        {
+            return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+        }
+
+        bool PointInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
+        {
+            bool b1, b2, b3;
+
+            b1 = sign(pt, v1, v2) < 0.0f;
+            b2 = sign(pt, v2, v3) < 0.0f;
+            b3 = sign(pt, v3, v1) < 0.0f;
+
+            return ((b1 == b2) && (b2 == b3));
+        }
+
     }
 }

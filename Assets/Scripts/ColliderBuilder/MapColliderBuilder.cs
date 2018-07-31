@@ -10,26 +10,69 @@ namespace Assets.Scripts
 {
     class MapColliderBuilder
     {
-        Polygon floorPolygon;
-        List<Polygon> floorEdgeLoops;
+        List<Polygon> wallPolygons;
 
         public MapColliderBuilder(List<Edge> inputEdges)
         {
             var edgeLoops = GroupAndSortEdges(inputEdges);
-            floorEdgeLoops = edgeLoops.Select((l) => new Polygon(l)).ToList();
-            floorPolygon = FoldPolygons(floorEdgeLoops);
-            //TriangulateLoop
+            wallPolygons = edgeLoops.Select((l) => new Polygon(l)).ToList();
         }
 
-        public Mesh GenerateWallColliders(int height)
+        /// <summary>
+        /// Sorts and link togheter edges into isolated edge-loops.
+        /// Requires that every edge share each of its vertices with another edge in order to ensure that all loops are closed.
+        /// </summary>
+        /// <param name="edges"></param>
+        /// <returns></returns>
+        public List<List<Edge>> GroupAndSortEdges(List<Edge> edges)
+        {
+            List<List<Edge>> edgeLoops = new List<List<Edge>>();
+            var lookup = new Dictionary<Vector2, Edge>(edges.Capacity);
+            edges.ForEach((e) => lookup.Add(e.v1, e));
+
+            while (edges.Any())
+            {
+                Edge start = edges.First();
+                Edge current = start;
+                Edge next;
+
+                List<Edge> currentEdgeLoop = new List<Edge>();
+
+                do
+                {
+                    edges.Remove(current);
+                    currentEdgeLoop.Add(current);
+                    if (lookup.TryGetValue(current.v2, out next))
+                    {
+                        current = next;
+                    }
+                    else
+                    {
+                        throw new Exception("Edges does not form a loop!, no connection at: " + current.v2);
+                    }
+
+                } while (current != start);
+
+                edgeLoops.Add(currentEdgeLoop);
+            }
+            return edgeLoops;
+        }
+
+        /// <summary>
+        /// Creates a "wall" mesh with a given height by "raising" each edge in the wall polygons into quads.
+        /// </summary>
+        /// <param name="height"></param>
+        /// <returns></returns>
+        public Mesh GenerateWallMesh(int height)
         {
             List<int> indices = new List<int>();
             List<Vector3> verts = new List<Vector3>();
 
-            foreach(Polygon p in floorEdgeLoops)
+            foreach (Polygon p in wallPolygons)
             {
+                //p.SetWindingOrder(WindingOrder.cw);
                 //TODO, dont add duplicate vertices
-                for(int i = 0; i < p.verts.Count; i++)
+                for (int i = 0; i < p.verts.Count; i++)
                 {
                     var index = verts.Count;
 
@@ -47,7 +90,7 @@ namespace Assets.Scripts
                     verts.Add(v3);
 
                     //Add triangles in clockwise order
-                    if (p.ClockWiseWindingOrder)
+                    if (p.WindingOrder == WindingOrder.cw)
                     {
                         indices.Add(index);
                         indices.Add(index + 1);
@@ -71,209 +114,115 @@ namespace Assets.Scripts
             return new Mesh { vertices = verts.ToArray(), triangles = indices.ToArray() };
         }
 
-        public void TestSort()
+        /// <summary>
+        /// Triangulates a floor mesh between the wall polygon outlines
+        /// WARNING: Will alter wall polygon winding orders! 
+        /// Make sure to only call this AFTER wall colliders have been created!
+        /// </summary>
+        /// <returns>The triangulated mesh</returns>
+        public Mesh GenerateFloorMesh()
         {
-            var randomCircularEdgeList = new List<Edge>();
-            randomCircularEdgeList.Add(new Edge(new Vector2(0, 0), new Vector2(1, 0)));
-            randomCircularEdgeList.Add(new Edge(new Vector2(-1, 0), new Vector2(0, 0)));
-            randomCircularEdgeList.Add(new Edge(new Vector2(1, 0), new Vector2(2, 0)));
-            randomCircularEdgeList.Add(new Edge(new Vector2(2, 0), new Vector2(-1, 0)));
+            //TODO: sort into a binary tree, should be faster and easier to connect)
+            wallPolygons.Sort();
 
-            var test1 = GroupAndSortEdges(randomCircularEdgeList);
+            //Aggregate works as a Fold, we continue to merge smaller polgyons into the 
+            //largest polygon until there are none left.
 
-
-
-            //var tripleSquare = new List<Edge>();
-            //tripleSquare.Add(new MarchingSquareTile(11).GetEdge(new Vector3(1, 0, 0)).Value);
-            //tripleSquare.Add(new MarchingSquareTile(7).GetEdge(new Vector3(0, 0, 0)).Value);
-            //tripleSquare.Add(new MarchingSquareTile(14).GetEdge(new Vector3(0, 0, 1)).Value);
-            //tripleSquare.Add(new MarchingSquareTile(13).GetEdge(new Vector3(1, 0, 1)).Value);
-
-            //var test2 = GroupAndSortEdges(tripleSquare);
-
+            var floorPolygon = wallPolygons.Aggregate((outer, inner) => ConnectPolygons(outer, inner));
+            floorPolygon = ConnectPolygons(floorPolygon, wallPolygons.Last());
+            return floorPolygon.TriangulateByEarClip();
         }
 
-        public List<List<Edge>> GroupAndSortEdges(List<Edge> edges)
+        /// <summary>
+        /// Finds the ideal vertices on the respective polygons to form a connection between
+        /// and then merges them into one by adding a double sided edge between them
+        /// </summary>
+        /// <param name="outer"></param>
+        /// <param name="inner"></param>
+        /// <returns></returns>
+        private Polygon ConnectPolygons(Polygon outer, Polygon inner)
         {
-            List<List<Edge>> edgeLoops = new List<List<Edge>>();
-            var lookup = new Dictionary<Vector2, Edge>(edges.Capacity);
-            edges.ForEach((e) => lookup.Add(e.v1, e));
+            Vector2 m = inner.verts.OrderByDescending((v) => v.x).First();
+            Vector2 p = outer.verts.Where((v) => v.x >= m.x).OrderByDescending((v) => (v - m).sqrMagnitude).Last();
 
-            while (edges.Any())
-            {
-                Edge start = edges.First();
-                Edge current = start;
-                Edge next;
-                
-                List<Edge> currentEdgeLoop = new List<Edge>();
+            var innerIndex = inner.verts.IndexOf(m);
+            var outerIndex = outer.verts.IndexOf(p);
 
-                do
-                {
-                    edges.Remove(current);
-                    currentEdgeLoop.Add(current);
-                    if(lookup.TryGetValue(current.v2, out next))
-                    {
-                        current = next;
-                    }
-                    else
-                    {
-                        throw new Exception("Edges does not from a loop!, no connection at: " + current.v2);
-                    }
-
-                } while (current != start);
-
-                //while(lookup.TryGetValue(current.v2, out other))
-                //{
-                //    edges.Remove(other);
-                //    currentEdgeLoop.Add(other);
-                //    current = other;
-                //}
-
-                edgeLoops.Add(currentEdgeLoop);
-                
-            }
-
-            return edgeLoops;
+            return CreatePolygonConnection(innerIndex, outerIndex, inner, outer);
         }
 
-              
-        public Polygon FoldPolygons(List<Polygon> polygons)
-        {
-            polygons.Sort((p1, p2) => p1.CompareTo(p2));
-            return polygons.Aggregate((outer, inner) => ConnectPolygons(outer, inner));
-        }
-
-
-        public Polygon ConnectPolygons(Polygon outer, Polygon inner)
-        {        
-            //Search inner polygon for rightmost vertex M (highest .x value)
-            Vector2 M = inner.verts.OrderByDescending((v) => v.x).First();
-
-            //I is the intersection point where the ray from M intersects an edge on the outer loop
-            Vector2 I = Vector2.zero;
-
-            //P is the closest vertex to M on the edge where I intersects
-            Vector2 P = Vector2.zero;
-
-            for(int i = 0; i < outer.verts.Count() - 1; i++)
-            {
-                var v1 = outer.verts[i];
-                var v2 = outer.verts[i + 1];
-
-                if((v1.x >= M.x || v2.x >= M.x) && ((v1.y >= M.y && v2.y <= M.y) || (v2.y >= M.y && v1.y <= M.y)))
-                {
-
-                    var intersectionPoint = Vector2.zero;
-                    if(Loop<Vector2>.RayLineIntersection(M, new Vector2(1, 0), v1, v2, out intersectionPoint))
-                    {
-                        if(intersectionPoint.x < I.x)
-                        {
-                            I = intersectionPoint;
-                            P = ((v1.x < v2.x) ? v1 : v2);
-                        }
-                    }
-                }
-            }
-
-            if (outer.verts.Contains(I))
-            {
-                //connect loops with M and I (if I is a vertex on outerloop)
-                //Very likely since the tiles are grid-aligned
-                return CreatePolygonConnection(inner.verts.IndexOf(M), outer.verts.IndexOf(I), inner, outer);
-            }
-            else
-            {
-                //Get reflex and convex vertices
-                List<Vector2> reflex = new List<Vector2>();
-                List<Vector2> convex = new List<Vector2>();
-
-                inner.GetConvexAndReflex(convex, reflex);
- 
-                //Look for reflex inner loop points inside M I P triangle
-                var inside = reflex.Where((v) => IsInTriangle(v, M, I, P));
-                if(!inside.Any())
-                {
-                    //Connect loops with M and P
-                    return CreatePolygonConnection(inner.verts.IndexOf(M), outer.verts.IndexOf(P), inner, outer);
-                }
-                else
-                {
-                    //Find reflex vert R inside triangle that minimizes the angle between (1,0) and the line {m, v} 
-                    //TODO replace Vector2.angle with dot product method
-                    var r = inside.OrderByDescending((v) => Vector2.Angle(new Vector2(1, 0), v - M)).Last();
-
-                    //Connect loops with R and P
-                    return CreatePolygonConnection(inner.verts.IndexOf(r), outer.verts.IndexOf(P), inner, outer);
-                }
-            }
-        }
-
-        //Needs testing
+        /// </summary>
+        /// Merges two polygons into one by "adding a double sided edge" between the specified indices.
+        /// In reality, shifts the vertices to align and concatenates the vertex lists.
+        /// <param name="innerIndex"></param>
+        /// <param name="outerIndex"></param>
+        /// <param name="inner"></param>
+        /// <param name="outer"></param>
+        /// <returns></returns>
         private Polygon CreatePolygonConnection(int innerIndex, int outerIndex, Polygon inner, Polygon outer)
         {
             //Make sure inner polygon have reverse winding order
-            if (inner.ClockWiseWindingOrder == outer.ClockWiseWindingOrder)
-            inner.ReverseWindingOrder();
+            if (inner.WindingOrder == outer.WindingOrder)
+                inner.ReverseWindingOrder();
 
             //Shift inner polygon vertices to start with desirded connection vertex
             var innerShifted = new List<Vector2>();
-            for(int i = innerIndex; i < inner.verts.Count; i++)
+            for (int i = innerIndex; i < inner.verts.Count + innerIndex; i++)
             {
                 innerShifted.Add(inner.verts[i]);
             }
 
             var newVerts = new Loop<Vector2>();
-            for(int i = 0; i < outer.verts.Count; i++)
+            for (int i = 0; i < outer.verts.Count; i++)
             {
                 newVerts.Add(outer.verts[i]);
-                if(i == outerIndex)
+                if (i == outerIndex)
                 {
-                    newVerts.Concat(innerShifted);
+                    for(int j = 0; j < innerShifted.Count; j++)
+                    {
+                        newVerts.Add(innerShifted[j]);
+                    }
+                    newVerts.Add(innerShifted[0]);
                     newVerts.Add(outer.verts[i]);
                 }
             }
 
-            return new Polygon(newVerts); 
+            return new Polygon(newVerts);
         }
 
-        private void TriangulateByEarClip(Polygon polygon)
+        public static bool IsIntersecting(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
         {
-            List<Vector2> convex = new List<Vector2>();
-            List<Vector2> reflex = new List<Vector2>();
+            Vector2 r = b - a;
+            Vector2 s = d - c;
 
-            polygon.GetConvexAndReflex(convex, reflex);
-            Loop<Vector2> ears = new Loop<Vector2>();
+            float dist = (r.x * s.y) - (r.y * s.x);
+            float u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / dist;
+            float t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / dist;
 
-            for(int i = 0; i < polygon.verts.Count; i++)
-            {
-                var a = polygon.verts[i - 1];
-                var b = polygon.verts[i];
-                var c = polygon.verts[i + 1];
-
-                if (!reflex.Any((v) => IsInTriangle(v, a, b, c)))
-                {
-                    ears.Add(b);
-                }
-            }          
+            return (0 < u && u < 1 && 0 < t && t < 1);
         }
 
-        //https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle 
-        private bool IsInTriangle(Vector2 v, Vector2 a, Vector2 b, Vector2 c)
+        public bool RayLineIntersection(Vector2 rayOrigin, Vector2 rayDirection, Vector2 c, Vector2 d, out Vector2 intersectionPoint)
         {
-            var s = a.y * c.x - a.x * c.y + (c.y - a.y) * v.x + (a.x - c.x) * v.y;
-            var t = a.x * b.y - a.y * b.y + (a.y - b.y) * v.x + (b.x - a.x) * v.y;
+            //Investigate max distance further
+            return GetLineIntersection(rayOrigin, rayOrigin + (rayDirection * (Math.Max(c.x - rayOrigin.x, d.x - rayOrigin.x)) * 2), c, d, out intersectionPoint);
+        }
 
-            if ((s < 0) != (t < 0))
-                return false;
+        //https://www.youtube.com/watch?v=c065KoXooSw
+        //https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
+        bool GetLineIntersection(Vector2 a, Vector2 b, Vector2 c, Vector2 d, out Vector2 intersectionPoint)
+        {
+                       
+            Vector2 r = b - a;
+            Vector2 s = d - c;
 
-            var A = -b.y * c.x + a.y * (c.x - b.x) + a.x * (b.y - c.y) + b.x * c.y;
-            if (A < 0.0)
-            {
-                s = -s;
-                t = -t;
-                A = -A;
-            }
-            return s > 0 && t > 0 && (s + t) <= A;
+            float dist = (r.x * s.y) - (r.y * s.x);
+            float u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / dist;
+            float t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / dist;
+
+            intersectionPoint = a + (t * r);
+
+            return (0 < u && u < 1 && 0 < t && t < 1);
         }
     }
 }

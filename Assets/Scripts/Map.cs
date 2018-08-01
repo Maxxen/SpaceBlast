@@ -113,31 +113,14 @@ public class Map : MonoBehaviour {
             }
         }
 
+        //Wall Mesh Collider
         var colliderPolygon = new MapColliderBuilder(edges);
+        this.GetComponent<MeshCollider>().sharedMesh = colliderPolygon.GenerateWallMesh(2);
 
-        var watch1 = System.Diagnostics.Stopwatch.StartNew();
-        var wallmesh = colliderPolygon.GenerateWallMesh(2);
-        watch1.Stop();
-
-        var watch2 = System.Diagnostics.Stopwatch.StartNew();
-        var floorMesh = colliderPolygon.GenerateFloorMesh();
-        watch2.Stop();
-
-        Debug.Log("Wall creation: " + watch1.ElapsedMilliseconds);
-        Debug.Log("Floor creation: " + watch2.ElapsedMilliseconds);
-
-
-        CombineInstance[] colliders = new CombineInstance[2];
-        colliders[0].mesh = wallmesh;
-        colliders[0].transform = Matrix4x4.identity;
-        colliders[1].mesh = floorMesh;
-        colliders[1].transform = Matrix4x4.identity;
-
-        var compositeMesh = new Mesh();
-        compositeMesh.CombineMeshes(colliders);
-
-        Debug.Log(floorMesh.vertexCount);
-        this.GetComponent<MeshCollider>().sharedMesh = compositeMesh;
+        //Floor Box Collider
+        var floor = this.GetComponent<BoxCollider>();
+        floor.center = new Vector3(chunksX * chunkWidth / 2.0f, 0, chunksY * chunkHeight / 2.0f);
+        floor.size = new Vector3(chunksX * chunkWidth, 0, chunksY * chunkHeight);
 
         //Navmesh
         var watch3 = System.Diagnostics.Stopwatch.StartNew();
@@ -168,7 +151,7 @@ public class Map : MonoBehaviour {
                 if (random.Next(0, 4) == 1)
                 {
                     var e = Instantiate(enemy_chaser, new Vector3(p.X, 0.1f, p.Y), Quaternion.identity);
-                    e.GetComponent<Enemy_Chaser_Controller>().Player = player;
+                    e.GetComponent<EnemyChaserController>().player = player;
                 }
             }
         }

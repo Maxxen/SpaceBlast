@@ -76,10 +76,10 @@ namespace Assets.Scripts
                 {
                     var index = verts.Count;
 
-                    var v0 = new Vector3(p1.x, 0, p1.y);
+                    var v0 = new Vector3(p1.x, -0.5f, p1.y);
                     var v1 = new Vector3(p1.x, height, p1.y);
                     var v2 = new Vector3(p2.x, height, p2.y);
-                    var v3 = new Vector3(p2.x, 0, p2.y);
+                    var v3 = new Vector3(p2.x, -0.5f, p2.y);
 
                     verts.Add(v0);
                     verts.Add(v1);
@@ -146,10 +146,73 @@ namespace Assets.Scripts
         /// <returns></returns>
         private Polygon ConnectPolygons(Polygon outer, Polygon inner)
         {
-            Vector2 m = inner.verts.OrderByDescending((v) => v.x).First();
-            Vector2 p = outer.verts.Where((v) => v.x >= m.x).OrderByDescending((v) => (v - m).sqrMagnitude).Last();
+            //Vector2 m = inner.verts.OrderByDescending((v) => v.x).First();
+            //Vector2 p = outer.verts.Where((v) => v.x >= m.x).OrderByDescending((v) => (v - m).sqrMagnitude).Last();
 
-            return CreatePolygonConnection(m, p, inner, outer);
+            //return CreatePolygonConnection(m, p, inner, outer);
+
+            //Search inner polygon for rightmost vertex M (highest .x value)
+            Vector2 M = inner.verts.OrderByDescending((v) => v.x).First();
+            //I is the intersection point where the ray from M intersects an edge on the outer loop
+            Vector2? I = null;
+            //P is the closest vertex to M on the edge where I lies.
+            Vector2? P = null;
+
+            outer.verts.ForEachPair((v1, v2) =>
+            {
+                if( (v1.x >= M.x || v2.x >= M.x) && ((v1.y >= M.y && v2.y <= M.y) || (v1.y <= M.y && v2.y >= M.y)) )
+                {
+                    Vector2? intersectionPoint = Utils.RayLineIntersection(M, new Vector2(1, 0), v1, v2);
+                    if (intersectionPoint != null)
+                    {
+                        if( I == null)
+                        {
+                            I = intersectionPoint;                        
+                        }
+                        else
+                        {
+                            I = (intersectionPoint.Value.x < I.Value.x) ? intersectionPoint : I;
+                        }
+                        P = ((v1.x < v2.x) ? v1 : v2);
+                    }
+                }
+            });
+            if(I == null || P == null)
+            {
+
+                throw new Exception("Polygon is not inside another polygon!");
+            }
+
+            if (outer.verts.Contains(I.Value))
+            {
+                //connect loops with M and I (if I is a vertex on outerloop)
+                //Very likely since the tiles are grid-aligned
+                return CreatePolygonConnection(M, I.Value, inner, outer);
+            }
+            else
+            {
+                //Get reflex and convex vertices
+                outer.CalculateConvexAndReflex();
+
+                //Look for reflex outer loop points inside M I P triangle
+                var inside = outer.reflex.Where((v) => Utils.IsInTriangle(v, M, I.Value, P.Value));
+                if (!inside.Any())
+                {
+                    //Connect loops with M and P
+                    return CreatePolygonConnection(M, P.Value, inner, outer);
+                }
+                else
+                {
+                    //Find reflex vert R inside triangle that minimizes the angle between (1,0) and the line {m, v} 
+                    //TODO replace Vector2.angle with dot product method
+                    var R = inside.OrderByDescending((v) => Vector2.Angle(new Vector2(1, 0), v - M)).Last();
+                    //Connect loops with R and P
+                    return CreatePolygonConnection(M, R, inner, outer);
+                }
+            }
+            //return CreatePolygonConnection(innerIndex, outerIndex, inner, outer);
+
+            //return CreatePolygonConnection(m, p, inner, outer);
         }
 
         /// </summary>
@@ -162,60 +225,30 @@ namespace Assets.Scripts
         /// <returns></returns>
         private Polygon CreatePolygonConnection(Vector2 innerVert, Vector2 outerVert, Polygon inner, Polygon outer)
         {
-            //Make sure inner polygon have reverse winding order
-            if (inner.WindingOrder == outer.WindingOrder)
-                inner.ReverseWindingOrder();
 
-            //Shift inner polygon vertices to start with desired connection vertex
-            while (inner.verts.First.Value != innerVert)
-                inner.verts.RotateLeft();
+            inner.SetWindingOrder(WindingOrder.cw);
+            outer.SetWindingOrder(WindingOrder.cw);
+            CyclicalLinkedList<Vector2> firstHalf = inner.verts.Copy();
+            CyclicalLinkedList<Vector2> secondHalf = outer.verts.Copy(); 
 
-            //Shift outer polygon vertices to end with desired connection vertex
-            while (outer.verts.Last.Value != outerVert)
-                outer.verts.RotateLeft();
+
+            //Shift inner polygon vertices to end with desired connection vertex
+            while (firstHalf.Last.Value != innerVert)
+                firstHalf.RotateLeft();
+
+            //Shift outer polygon vertices to start with desired connection vertex
+            while (secondHalf.First.Value != outerVert)
+                secondHalf.RotateLeft();
 
             //Add the duplicate verts in order to make sure edge is two sided.
-            outer.verts.AddFirst(outer.verts.Last.Value);
-            inner.verts.AddFirst(inner.verts.Last.Value);
+            firstHalf.AddFirst(innerVert);
+            secondHalf.AddLast(outerVert);
 
-            outer.verts.Concat(inner.verts);
+            firstHalf.Concat(secondHalf);
 
-            return new Polygon(outer.verts);
-        }
+            return new Polygon(secondHalf);
 
-        public static bool IsIntersecting(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
-        {
-            Vector2 r = b - a;
-            Vector2 s = d - c;
-
-            float dist = (r.x * s.y) - (r.y * s.x);
-            float u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / dist;
-            float t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / dist;
-
-            return (0 < u && u < 1 && 0 < t && t < 1);
-        }
-
-        public bool RayLineIntersection(Vector2 rayOrigin, Vector2 rayDirection, Vector2 c, Vector2 d, out Vector2 intersectionPoint)
-        {
-            //Investigate max distance further
-            return GetLineIntersection(rayOrigin, rayOrigin + (rayDirection * (Math.Max(c.x - rayOrigin.x, d.x - rayOrigin.x)) * 2), c, d, out intersectionPoint);
-        }
-
-        //https://www.youtube.com/watch?v=c065KoXooSw
-        //https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/565282#565282
-        bool GetLineIntersection(Vector2 a, Vector2 b, Vector2 c, Vector2 d, out Vector2 intersectionPoint)
-        {
-                       
-            Vector2 r = b - a;
-            Vector2 s = d - c;
-
-            float dist = (r.x * s.y) - (r.y * s.x);
-            float u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / dist;
-            float t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / dist;
-
-            intersectionPoint = a + (t * r);
-
-            return (0 < u && u < 1 && 0 < t && t < 1);
+            //This is broken, it is also the solution to the problems were having, fix it PLZ
         }
     }
 }

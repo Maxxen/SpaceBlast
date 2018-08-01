@@ -175,6 +175,26 @@ namespace Assets.Scripts.ColliderBuilder
             while (current != First);
         }
 
+        public void Reverse()
+        {
+            if (Count < 2)
+            {
+                return;
+            }
+            else
+            {
+                CyclicalNode<T> current = First;
+                do
+                {
+                    CyclicalNode<T> temp = current.Next;
+                    current.Next = current.Prev;
+                    current.Prev = temp;
+                    current = temp;
+                }
+                while (current != First);
+            }
+        }
+
         public CyclicalNode<T> Find(T item)
         {
             CyclicalNode<T> current = First;
@@ -208,6 +228,16 @@ namespace Assets.Scripts.ColliderBuilder
             }
             while (current != First);
             return -1;
+        }
+
+        public CyclicalLinkedList<T> Copy()
+        {
+            CyclicalLinkedList<T> clone = new CyclicalLinkedList<T>();
+            foreach (T item in this)
+            {
+                clone.AddLast(item);
+            }
+            return clone;
         }
     }
 }

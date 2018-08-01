@@ -20,7 +20,9 @@ namespace Assets.Scripts.ColliderBuilder
         public Polygon(List<Edge> edges)
         {
             this.verts = EdgeListToVertexLoop(edges);
-            RecalculateWindingOrder();
+            this.WindingOrder = WindingOrder.cw;
+            //RecalculateWindingOrder();
+
         }
 
         public Polygon(CyclicalLinkedList<Vector2> verts)
@@ -64,13 +66,11 @@ namespace Assets.Scripts.ColliderBuilder
         {
             WindingOrder = WindingOrder == WindingOrder.cw ? WindingOrder.ccw : WindingOrder.cw;
             verts.Reverse();
-            //earVerts.Reverse();
-            //convexVerts.Reverse();
-            //reflexVerts.Reverse();
         }
 
         public void SetWindingOrder(WindingOrder order)
         {
+            RecalculateWindingOrder();
             if(order == WindingOrder)
             {
                 return;
@@ -81,7 +81,7 @@ namespace Assets.Scripts.ColliderBuilder
             }
         }
 
-        private WindingOrder RecalculateWindingOrder()
+        public WindingOrder RecalculateWindingOrder()
         {
             int cw = 0;
             int ccw = 0;
@@ -101,12 +101,12 @@ namespace Assets.Scripts.ColliderBuilder
         //Needs testing
         private bool ClockwiseWinding(Vector2 a, Vector2 b, Vector2 c)
         {
-            var v1 = b - a;
-            var v2 = c - a;
+            var v1 = a - b;
+            var v2 = c - b;
 
             var cross = v1.x * v2.y - v1.y * v2.x;
 
-            return cross >= 0;
+            return cross > 0;
         }
 
 
@@ -119,13 +119,13 @@ namespace Assets.Scripts.ColliderBuilder
             Vector2 point = verts.First();
             int intersections = 0;
             List<Vector2> potentialEdges = other.verts.Where((v) => v.x > point.x).ToList();
-            float maxDistance = potentialEdges.OrderByDescending((v) => v.x).FirstOrDefault().x + 10;
+            float maxDistance = 1000000;
             for(int i = 0; i < potentialEdges.Count - 1; i++)
             {
                 Vector2 e1 = potentialEdges[i];
                 Vector2 e2 = potentialEdges[i + 1];
 
-                if(MapColliderBuilder.IsIntersecting(point, point + new Vector2(0, maxDistance), e1, e2)){
+                if(Utils.IsIntersecting(point, point + new Vector2(0, maxDistance), e1, e2)){
                     intersections++;
                 }
             }
@@ -160,10 +160,18 @@ namespace Assets.Scripts.ColliderBuilder
             {
 
                 var vert = verts.First;
-
-                indices.Add(originalVerts.IndexOf(vert.Value));
-                indices.Add(originalVerts.IndexOf(vert.Next.Value));
-                indices.Add(originalVerts.IndexOf(vert.Next.Next.Value));
+                if(WindingOrder == WindingOrder.ccw)
+                {
+                    indices.Add(originalVerts.IndexOf(vert.Prev.Value));
+                    indices.Add(originalVerts.IndexOf(vert.Value));
+                    indices.Add(originalVerts.IndexOf(vert.Next.Value));
+                }
+                else
+                {
+                    indices.Add(originalVerts.IndexOf(vert.Next.Value));
+                    indices.Add(originalVerts.IndexOf(vert.Value));
+                    indices.Add(originalVerts.IndexOf(vert.Prev.Value));
+                }
             }
 
             var meshTris = indices.ToArray();
@@ -182,9 +190,18 @@ namespace Assets.Scripts.ColliderBuilder
             //var prev = verts[verts.IndexOf(ear) - 1];
             //var next = verts[verts.IndexOf(ear) + 1];
 
-            indices.Add(originalVerts.IndexOf(ear));
-            indices.Add(originalVerts.IndexOf(next));
-            indices.Add(originalVerts.IndexOf(prev));
+            if(WindingOrder == WindingOrder.ccw)
+            {
+                indices.Add(originalVerts.IndexOf(prev));
+                indices.Add(originalVerts.IndexOf(ear));
+                indices.Add(originalVerts.IndexOf(next));
+            }
+            else
+            {
+                indices.Add(originalVerts.IndexOf(next));
+                indices.Add(originalVerts.IndexOf(ear));
+                indices.Add(originalVerts.IndexOf(prev));
+            }
 
             ears.RemoveFirst();
             verts.Remove(ear);
@@ -233,9 +250,15 @@ namespace Assets.Scripts.ColliderBuilder
             return IsConvex(prev, vertex, next);
         }
 
-        public bool IsConvex(Vector2 a, Vector2 b, Vector2 c)
+        public bool IsConvex(Vector2 prev, Vector2 current, Vector2 next)
         {
-            return ((b.x - a.x) * (c.y - b.y) - (c.x - b.x) * (b.y - a.y) <= 0);
+			Vector2 d1 = (current - prev).normalized;
+			Vector2 d2 = (next - current).normalized;
+			Vector2 n2 = new Vector2(-d2.y, d2.x);
+
+			return (Vector2.Dot(d1, n2) <= 0f);
+            
+            //return ((b.x - a.x) * (c.y - b.y) - (c.x - b.x) * (b.y - a.y) < 0);
         }
 
         public void CalculateConvexAndReflex()
@@ -265,53 +288,44 @@ namespace Assets.Scripts.ColliderBuilder
 
         bool IsEar(Vector2 a, Vector2 b, Vector2 c)
         {
-            foreach(Vector2 v in reflex)
-            {
-                if(v == a || v == b || v == c)
-                {
-                    continue;
-                }
-                if (IsInTriangle(v, a, b, c))
-                    return false;
-            }
-            return true;
-            //return !reflex.Any((v) => IsInTriangle(v, a, b, c) && !(v == a || v == b || v == c));
+            //foreach(Vector2 v in reflex)
+            //{
+            //    if(v == a || v == b || v == c)
+            //    {
+            //        continue;
+            //    }
+            //    if (IsInTriangle(v, a, b, c))
+            //        return false;
+            //}
+            //return true;
+
+            return !reflex.Any((v) => Utils.IsInTriangle(v, a, b, c) && !(v == a || v == b || v == c));
         }
 
         //Construct list with all ear vertices.
         public void CalculateEars()
         {
             ears = new CyclicalLinkedList<Vector2>();
-            
-            verts.ForEachTriplet((prev, current, next) =>
+
+            foreach(Vector2 v in convex)
+            {
+                if (IsEar(v))
                 {
-                    if (convex.Contains(current))
-                    {
-                        if(IsEar(prev, current, next))
-                        {
-                            ears.AddLast(current);
-                        }
-                    }
+                    ears.AddLast(v);
                 }
-            );
-        }
-
-        // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle 
-
-        bool IsInTriangle (Vector2 pt, Vector2 v1, Vector2 v2, Vector2 v3)
-        {
-            bool b1, b2, b3;
-
-            b1 = sign(pt, v1, v2) < 0.0f;
-            b2 = sign(pt, v2, v3) < 0.0f;
-            b3 = sign(pt, v3, v1) < 0.0f;
-
-            return ((b1 == b2) && (b2 == b3));
-        }
-
-        float sign (Vector2 p1, Vector2 p2, Vector2 p3)
-        {
-            return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+            }
+            
+            //verts.ForEachTriplet((prev, current, next) =>
+            //    {
+            //        if (convex.Contains(current))
+            //        {
+            //            if(IsEar(prev, current, next))
+            //            {
+            //                ears.AddLast(current);
+            //            }
+            //        }
+            //    }
+            //);
         }
     }
 }

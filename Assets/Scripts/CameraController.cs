@@ -10,6 +10,7 @@ public class CameraController : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+
         var angle = (90 - this.transform.rotation.eulerAngles.x) * Mathf.Deg2Rad;
         offset = new Vector3(0, Mathf.Cos(angle) * distance, Mathf.Sin(angle) * -distance);
 	}

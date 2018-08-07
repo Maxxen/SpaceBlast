@@ -33,22 +33,43 @@ public class Map : MonoBehaviour {
 
     public float tileScale = 0.5f;
     public int tileRotationOffset = 180;
-    private System.Random random;
 
+    private System.Random random;
     private TileMap tileMap;
 
-    void Start ()
-    {
-        random = new System.Random(1337);
+    private ObjectPool enemyPool;
 
+    public void Start()
+    {
+
+    }
+
+    public void GenerateMap(System.Random random)
+    {
+        this.random = random;
         tileMap = new TileMap((chunksX * chunkWidth) + 1, (chunksY * chunkHeight) + 1, random);
         tileMap.GenerateMap();
 
-        GenerateChunkMeshes();
+        GenerateWorldGeometry();
+
+        if (enemyPool == null)
+            CreateEnemyPool();
+
+        enemyPool.Shuffle(random);
+
         SpawnPlayerAndEnemies();
     }
 
-    public void GenerateChunkMeshes()
+    private void CreateEnemyPool()
+    {
+        enemyPool = new ObjectPool(
+            new ObjectPoolData(enemy_chaser, 60), 
+            new ObjectPoolData(enemy_shooter, 60), 
+            new ObjectPoolData(enemy_bomber, 30)
+            );
+    }
+
+    private void GenerateWorldGeometry()
     {
         List<Edge> edges = new List<Edge>();
         for(int cy = 0; cy < chunksX; cy++)
@@ -131,7 +152,7 @@ public class Map : MonoBehaviour {
         Debug.Log("Navmesh creation: " + watch3.ElapsedMilliseconds);
     }
 
-    public void SpawnPlayerAndEnemies()
+    private void SpawnPlayerAndEnemies()
     {
         List<Rectangle> playAreas = tileMap.Rooms.Select((r) => r.Dimensions).ToList();
 
@@ -150,8 +171,10 @@ public class Map : MonoBehaviour {
             {
                 if (random.Next(0, 4) == 1)
                 {
-                    var e = Instantiate(enemy_chaser, new Vector3(p.X, 0.1f, p.Y), Quaternion.identity);
-                    e.GetComponent<EnemyChaserController>().player = player;
+                    var enemy = enemyPool.Spawn(new Vector3(p.X, 0, p.Y), Quaternion.identity);
+                    var enemyNavMesh = enemy.GetComponent<NavMeshAgent>();
+                    enemyNavMesh.enabled = false;
+                    enemyNavMesh.enabled = true;
                 }
             }
         }

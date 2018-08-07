@@ -8,18 +8,25 @@ enum EnemyChaserState { Idling, Chasing, Searching}
 public class EnemyChaserController : MonoBehaviour {
 
     public GameObject player;
-    public float range = 4;
+    public float range = 6;
 
     EnemyChaserState state = EnemyChaserState.Idling;
 
     NavMeshAgent nav;
     Animator anim;
+    EnemyCombatStats stats;
+    Renderer render;
     Vector3 lastKnownPosition;
 
 	// Use this for initialization
 	void Start () {
         nav = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
+        stats = GetComponent<EnemyCombatStats>();
+        render = GetComponentInChildren<Renderer>();
+
+        //nav.speed = stats.MovementSpeed;
+
         anim.Play("Idle");
 	}
 
@@ -86,5 +93,23 @@ public class EnemyChaserController : MonoBehaviour {
                 return true;
         }
         return false;
+    }
+
+    void TakeDamage()
+    {
+        StartCoroutine(Flash());
+    }
+
+    IEnumerator Flash()
+    {
+        
+        render.material.SetFloat("_FlashAmount", 0.5f);
+        yield return new WaitForSeconds(0.1f);
+        render.material.SetFloat("_FlashAmount", 0);
+    }
+
+    void Die()
+    {
+        this.gameObject.SetActive(false);
     }
 }

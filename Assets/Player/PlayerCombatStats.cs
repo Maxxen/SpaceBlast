@@ -1,9 +1,10 @@
-﻿using System.Collections;
+﻿using Assets.Scripts.Enemy;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PlayerCombatStats : MonoBehaviour {
+public class PlayerCombatStats : MonoBehaviour, IDamageable {
 
     public int HealthMax { get; private set; }
     public float HealthRegen { get; private set; }
@@ -61,6 +62,7 @@ public class PlayerCombatStats : MonoBehaviour {
     Slider HealthSlider;
     Slider EnergySlider;
 
+    Renderer render;
     public void RecalculateStats()
     {
         HealthMax = BASE_HEALTH + (HEALTH_PER_LVL * healthSkill);
@@ -93,6 +95,7 @@ public class PlayerCombatStats : MonoBehaviour {
 
     private void Start()
     {
+        render = GetComponentInChildren<Renderer>();
         HealthSlider = GameObject.Find("/UI/GameHUD/ResourceSliders/HealthSlider").GetComponent<Slider>();
         EnergySlider = GameObject.Find("/UI/GameHUD/ResourceSliders/EnergySlider").GetComponent<Slider>();
 
@@ -138,11 +141,18 @@ public class PlayerCombatStats : MonoBehaviour {
 
         if(Health <= 0)
         {
-            onDeath();
+
         }
         else
-        {
-            onDamage();
+        {         
+            StartCoroutine(Flash());
         }
+    }
+
+    IEnumerator Flash()
+    {
+        render.material.SetFloat("_FlashAmount", 0.5f);
+        yield return new WaitForSeconds(0.1f);
+        render.material.SetFloat("_FlashAmount", 0);
     }
 }

@@ -3,27 +3,30 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Bullet : MonoBehaviour {
-
-    public string shooterTag;
-    public int damage = 0;
-
-    private void OnTriggerEnter(Collider other)
+namespace Assets.Scripts.Weapon
+{
+    class Bullet : MonoBehaviour
     {
-        if(other.tag == "Map" )
+        public string shooterTag;
+        public int damage = 0;
+
+        private void OnTriggerEnter(Collider other)
         {
-            gameObject.SetActive(false);
-            return;
-        }
-        if (other.tag == "Enemy" && shooterTag == "Player")
-        {
-            gameObject.SetActive(false);
-            other.GetComponent<IDamageable>().TakeDamage(5);
-        }
-        else if (other.tag == "Player" && shooterTag == "Enemy")
-        {
-            gameObject.SetActive(false);
-            //
+            if (other.tag == "Map")
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+            if (other.tag == "Enemy" && shooterTag == "Player")
+            {
+                gameObject.SetActive(false);
+                other.GetComponent<IDamageable>().TakeDamage(5);
+            }
+            else if (other.tag == "Player" && shooterTag == "Enemy")
+            {
+                gameObject.SetActive(false);
+                //
+            }
         }
     }
 }

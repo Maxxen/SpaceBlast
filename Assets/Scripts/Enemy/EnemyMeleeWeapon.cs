@@ -30,7 +30,7 @@ namespace Assets.Scripts.Enemy
         {
             if (range.IsInRange)
             {
-                Debug.Log("Damage");
+                range.targer.GetComponent<IDamageable>().TakeDamage(1);
             }
         }
 

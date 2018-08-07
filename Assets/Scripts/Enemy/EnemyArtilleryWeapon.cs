@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Scripts.Weapon;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,8 @@ namespace Assets.Scripts.Enemy
         EnemyCombatStats stats;
         Animator anim;
 
+        private GameObject target;
+
         public void Start()
         {
             stats = GetComponent<EnemyCombatStats>();
@@ -23,15 +26,23 @@ namespace Assets.Scripts.Enemy
             {
                 mortarPool = new ObjectPool(
                 mortarShell, 
-                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.shooterTag = "Enemy"; mortar.damage = stats.ProjectileDamage; },
-                15
+                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.fuseTime = 4; mortar.diameter = 2; mortar.damage = stats.ProjectileDamage; },
+                10
                 );
             }
         }
 
         public void Attack(GameObject target)
         {
-            mortarPool.Spawn(target.transform.position, Quaternion.identity);
+            this.target = target;
+            anim.SetTrigger("Shoot");
+        }
+
+        //This function is called by the animation event in the shoot clip, started by setting the "Shoot" trigger above.
+        //It is absolutely ridiculous but alas the "Unity way" to do it.
+        public void FireMortar()
+        {
+            mortarPool.Spawn(target.transform.position + new Vector3(0, 0.2f, 0), Quaternion.identity);
         }
 
         float nextAttack;

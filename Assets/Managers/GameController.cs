@@ -1,4 +1,5 @@
 ﻿using Assets.Scripts.Enemy;
+using Assets.Scripts.Player;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -34,10 +35,12 @@ public class GameController : MonoBehaviour {
     public GameObject levelUpScreen;
     public GameObject pauseMenuScreen;
     public GameObject gameOverScreen;
+    public GameObject player;
 
-    public EnemyStats chaserStats;
-    public EnemyStats shooterStats;
-    public EnemyStats bomberStats;
+    public EnemyAttributes chaserAttributes;
+    public EnemyAttributes shooterAttributes;
+    public EnemyAttributes bomberAttributes;
+    public PlayerAttributes playerAttributes;
 
     GameObject currentScreen;
 
@@ -47,8 +50,6 @@ public class GameController : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         map = GameObject.Find("Map");
-        comboCounter = GameObject.Find("/UI/GameScreen/ComboBox/ComboCounter").GetComponent<UnityEngine.UI.Text>();
-        comboTimer = GameObject.Find("/UI/GameScreen/ComboBox/ComboTimer").GetComponent<UnityEngine.UI.Text>();
 
         currentScreen = mainMenu;
         currentScreen.SetActive(true);
@@ -77,41 +78,50 @@ public class GameController : MonoBehaviour {
         }
 	}
 
-    public void NewGame()
+    private void InitGame()
     {
+        chaserAttributes.ResetStats();
+        shooterAttributes.ResetStats();
+        bomberAttributes.ResetStats();
+        playerAttributes.ResetStats();
+        player.GetComponent<PlayerStats>().UpdateStats();
+
         floor = 0;
         Score = 0;
-        seed = System.DateTime.Now.Millisecond;
-        random = new System.Random(seed);
-
-        var mapgen = map.GetComponent<Map>();
-        mapgen.GenerateMap(random);
 
         scoreCounter.text = "Score: " + Score;
         floorCounter.text = "Floor: " + floor;
-    }
-
-    public void NextFloor()
-    {
-        chaserStats.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
-        shooterStats.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
-        bomberStats.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
-
-        floor++;
-        floorCounter.text = "Floor: " + floor;
 
         var mapgen = map.GetComponent<Map>();
         mapgen.GenerateMap(random);
+    }
+
+    public void NewGame()
+    {
+        seed = System.DateTime.Now.Millisecond;
+        random = new System.Random(seed);
+
+        InitGame();
     }
 
     public void RetryGame()
     {
-        floor = 0;
-        Score = 0;
         random = new System.Random(seed);
+        InitGame();
+    }
+
+    public void NextFloor()
+    {
+        chaserAttributes.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
+        shooterAttributes.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
+        bomberAttributes.LevelUpAttribute((EnemyAttribute)random.Next(0, 3));
+
+        floor++;
 
         var mapgen = map.GetComponent<Map>();
         mapgen.GenerateMap(random);
+
+        floorCounter.text = "Floor: " + floor;
     }
 
     public void GotoPauseMenu()

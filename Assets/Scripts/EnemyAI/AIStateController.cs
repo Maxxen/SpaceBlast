@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using Assets.Scripts.Enemy;
+using Assets.Scripts.Weapon;
 using Assets.Scripts.EnemyAI.Actions;
 
 namespace Assets.Scripts.EnemyAI
@@ -19,7 +19,7 @@ namespace Assets.Scripts.EnemyAI
         [HideInInspector]
         public IWeapon attack;
         [HideInInspector]
-        public EnemyHealth health;
+        public EnemyStats health;
         [HideInInspector]
         public GameObject player;
 
@@ -35,9 +35,9 @@ namespace Assets.Scripts.EnemyAI
             nav = GetComponent<NavMeshAgent>();
             anim = GetComponent<Animator>();
             attack = GetComponent<IWeapon>();
-            health = GetComponent<EnemyHealth>();
+            health = GetComponent<EnemyStats>();
 
-            nav.speed = health.stats.MovementSpeed;
+            nav.speed = health.attributes.MovementSpeed;
 
             stateSwitchTime = Time.time;
 

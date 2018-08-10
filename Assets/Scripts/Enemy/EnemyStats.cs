@@ -1,84 +1,51 @@
-﻿using System;
+﻿using Assets.Scripts.Enemy;
+using Assets.Scripts.Weapon;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 
-namespace Assets.Scripts.Enemy
-{
-    public enum EnemyAttribute
+public class EnemyStats : MonoBehaviour, IDamageable {
+
+    public EnemyAttributes attributes;
+    public int Health { get; private set; }
+
+    GameController gameController;
+    Renderer render;
+
+    private void Start()
     {
-        MaxHealth,
-        MovementSpeed,
-        Damage
+        gameController = GameObject.Find("UI").GetComponent<GameController>();
+        render = GetComponentInChildren<Renderer>();
     }
 
-    [CreateAssetMenu(fileName = "EnemyStats")]
-    public class EnemyStats : ScriptableObject
+    private void OnEnable()
     {
-        public int MaxHealth { get; private set; }
-        public float MovementSpeed { get; private set; }
-        public int Damage { get; private set; }
-        public int ScoreReward { get; private set; }
+        attributes.RecalculateStats();
+        Health = attributes.MaxHealth;
+    }
 
-        [SerializeField]
-        int BASE_HEALTH = 100;
-        [SerializeField]
-        int HEALTH_PER_LVL = 25;
-
-        [SerializeField]
-        float BASE_MOVEMENT_SPEED = 3f;
-        [SerializeField]
-        float BASE_MOVEMENT_SPEED_PER_LVL = 1.5f;
-
-        [SerializeField]
-        int BASE_DAMAGE = 10;
-        [SerializeField]
-        int BASE_DAMAGE_PER_LVL = 1;
-
-        [SerializeField]
-        int attribute_Health = 0;
-        [SerializeField]
-        int attribute_MovementSpeed = 0;
-        [SerializeField]
-        int attribute_Damage = 0;
-
-
-        [SerializeField]
-        int scoreReward = 100;
-
-        private void OnEnable()
+    public void TakeDamage(int damage)
+    {
+        Debug.Log(damage);
+        this.Health -= damage;
+        if (Health <= 0)
         {
-            RecalculateStats();
+            //Die
+            gameController.IncreaseCombo();
+            gameController.AddScore(attributes.ScoreReward);
+            this.gameObject.SetActive(false);
         }
-
-        public void LevelUpAttribute(EnemyAttribute attribute)
+        else
         {
-            switch (attribute)
-            {
-                case EnemyAttribute.MaxHealth:
-                    attribute_Health++;
-                    break;
-                case EnemyAttribute.MovementSpeed:
-                    attribute_MovementSpeed++;
-                    break;
-                case EnemyAttribute.Damage:
-                    attribute_Damage++;
-                    break;
-                default:
-                    break;
-            }
-
-            RecalculateStats();
+            //Animate flash effect
+            StartCoroutine(Flash());
         }
+    }
 
-        public void RecalculateStats()
-        {
-            MaxHealth = (BASE_HEALTH + (HEALTH_PER_LVL * attribute_Health));
-            MovementSpeed = (BASE_MOVEMENT_SPEED + (BASE_MOVEMENT_SPEED_PER_LVL * attribute_MovementSpeed));
-            Damage = (BASE_DAMAGE + (BASE_DAMAGE_PER_LVL * attribute_Damage));
-
-            ScoreReward = scoreReward;
-        }
+    IEnumerator Flash()
+    {
+        render.material.SetFloat("_FlashAmount", 0.5f);
+        yield return new WaitForSeconds(0.1f);
+        render.material.SetFloat("_FlashAmount", 0);
     }
 }

@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Assets.Scripts.Enemy
+namespace Assets.Scripts.Weapon
 {
-    interface IDamageable
+    interface IWeapon
     {
-        void TakeDamage(int damage);
+        void Attack();
     }
 }

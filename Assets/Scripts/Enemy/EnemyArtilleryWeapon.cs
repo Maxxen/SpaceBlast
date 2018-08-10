@@ -12,19 +12,19 @@ namespace Assets.Scripts.Enemy
         public GameObject mortarShell;
 
         static ObjectPool mortarPool;
-        EnemyHealth health;
+        EnemyStats health;
         GameObject target;
 
         public void Start()
         {
-            health = GetComponent<EnemyHealth>();
+            health = GetComponent<EnemyStats>();
             target = GetComponent<EnemyAI.AIStateController>().player;
             
             if(mortarPool == null)
             {
                 mortarPool = new ObjectPool(
                 mortarShell, 
-                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.fuseTime = 4; mortar.diameter = 2; mortar.damage = health.stats.Damage; },
+                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.fuseTime = 4; mortar.diameter = 2; mortar.damage = health.attributes.Damage; },
                 10
                 );
             }

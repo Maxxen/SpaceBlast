@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.Scripts.Weapon;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,12 +11,12 @@ namespace Assets.Scripts.Enemy
     {
         public EnemyMeleeRange range;
 
-        EnemyHealth health;
+        EnemyStats health;
         Animator anim;
 
         private void Start()
         {
-            health = GetComponent<EnemyHealth>();
+            health = GetComponent<EnemyStats>();
             anim = GetComponent<Animator>();
         }
 
@@ -25,7 +26,7 @@ namespace Assets.Scripts.Enemy
         {
             if (range.IsInRange)
             {
-                range.targer.GetComponent<IDamageable>().TakeDamage(1);
+                range.targer.GetComponent<IDamageable>().TakeDamage(health.attributes.Damage);
             }
         }
     }

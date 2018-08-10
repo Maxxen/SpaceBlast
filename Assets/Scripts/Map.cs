@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Linq;
 using Assets.Scripts.ColliderBuilder;
 using UnityEngine.AI;
+using Assets.Scripts.Player;
 
 public class Map : MonoBehaviour {
 
@@ -60,7 +61,7 @@ public class Map : MonoBehaviour {
 
         GenerateWorldGeometry();
 
-        player.GetComponent<PlayerCombatStats>().RecalculateStats();
+        player.GetComponent<PlayerStats>().attributes.RecalculateStats();
 
         SpawnPlayerAndEnemies(random);
     }

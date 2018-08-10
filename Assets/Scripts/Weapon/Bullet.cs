@@ -20,11 +20,12 @@ namespace Assets.Scripts.Weapon
             if (other.tag == "Enemy" && shooterTag == "Player")
             {
                 gameObject.SetActive(false);
-                other.GetComponent<IDamageable>().TakeDamage(5);
+                other.GetComponent<IDamageable>().TakeDamage(damage);
             }
             else if (other.tag == "Player" && shooterTag == "Enemy")
             {
                 gameObject.SetActive(false);
+                other.GetComponent<IDamageable>().TakeDamage(damage);
                 //
             }
         }

@@ -13,17 +13,17 @@ namespace Assets.Scripts.Enemy
         public Transform shootPosition;
         
         static ObjectPool bulletPool;
-        EnemyHealth health;
+        EnemyStats health;
 
         void Start()
         {
-            health = GetComponent<EnemyHealth>();
+            health = GetComponent<EnemyStats>();
 
             if(bulletPool == null)
             {
                 bulletPool = new ObjectPool(
                 bulletPrefab, 
-                (b) => { var bullet = b.GetComponent<Bullet>(); bullet.shooterTag = "Enemy"; bullet.damage = health.stats.Damage; },
+                (b) => { var bullet = b.GetComponent<Bullet>(); bullet.shooterTag = "Enemy"; bullet.damage = health.attributes.Damage; },
                 15
                 );
             }

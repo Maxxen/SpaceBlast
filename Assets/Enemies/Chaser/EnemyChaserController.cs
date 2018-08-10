@@ -14,7 +14,7 @@ public class EnemyChaserController : MonoBehaviour {
 
     NavMeshAgent nav;
     Animator anim;
-    EnemyCombatStats stats;
+    EnemyHealth stats;
     Renderer render;
     Vector3 lastKnownPosition;
 
@@ -22,7 +22,7 @@ public class EnemyChaserController : MonoBehaviour {
 	void Start () {
         nav = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
-        stats = GetComponent<EnemyCombatStats>();
+        stats = GetComponent<EnemyHealth>();
         render = GetComponentInChildren<Renderer>();
 
         //nav.speed = stats.MovementSpeed;

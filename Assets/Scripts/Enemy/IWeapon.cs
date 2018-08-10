@@ -7,7 +7,6 @@ namespace Assets.Scripts.Enemy
 {
     interface IWeapon
     {
-        void Attack(UnityEngine.GameObject target);
-        bool CanAttack();
+        void Attack();
     }
 }

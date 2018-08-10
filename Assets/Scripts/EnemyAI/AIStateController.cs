@@ -10,42 +10,47 @@ namespace Assets.Scripts.EnemyAI
 {
     class AIStateController : MonoBehaviour
     {
-
         public AIState currentState;
-        public bool AIActive;
-        
-        public NavMeshAgent nav;
-        public Animator anim;
-        public IWeapon attack;
-        public IDamageable health;
 
+        [HideInInspector]
+        public NavMeshAgent nav;
+        [HideInInspector]
+        public Animator anim;
+        [HideInInspector]
+        public IWeapon attack;
+        [HideInInspector]
+        public EnemyHealth health;
+        [HideInInspector]
         public GameObject player;
+
+        float stateSwitchTime;
+        bool aiActive = true;
+        GameController gameController;
 
         // Use this for initialization
         void Start()
         {
+            gameController = GameObject.Find("UI").GetComponent<GameController>();
             player = GameObject.FindGameObjectWithTag("Player");
             nav = GetComponent<NavMeshAgent>();
             anim = GetComponent<Animator>();
             attack = GetComponent<IWeapon>();
-            health = GetComponent<IDamageable>();
+            health = GetComponent<EnemyHealth>();
+
+            nav.speed = health.stats.MovementSpeed;
+
+            stateSwitchTime = Time.time;
+
+            gameController.OnPause += () => aiActive = false;
+            gameController.OnResume += () => aiActive = true;
         }
 
         // Update is called once per frame
         void Update()
         {
-            if (AIActive)
+            if (!gameController.IsPaused)
             {
                 currentState.UpdateState(this);
-            }
-        }
-
-        private void OnDrawGizmos()
-        {
-            if (currentState != null)
-            {
-                Gizmos.color = currentState.sceneGizmoColor;
-                Gizmos.DrawWireSphere(transform.position, 1);
             }
         }
 
@@ -61,10 +66,18 @@ namespace Assets.Scripts.EnemyAI
             }
         }
 
-        float stateSwitchTime;
         public float TimeSinceStateSwitch()
         {
             return Time.time - stateSwitchTime;
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (currentState != null)
+            {
+                Gizmos.color = currentState.sceneGizmoColor;
+                Gizmos.DrawWireSphere(transform.position, 1);
+            }
         }
     }
 }

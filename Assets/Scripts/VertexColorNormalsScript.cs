@@ -15,13 +15,13 @@ public class VertexColorNormalsScript : MonoBehaviour {
         var uvs = mesh.uv;
         var normals = mesh.normals;
         int[] map = new int[vertices.Length];
-
+        
         List<int> newVerts = new List<int>();  
 
         for(int v1 = 0; v1 < vertices.Length; v1++)
         {
             var pos = vertices[v1];
-            bool duplicate = false;
+            bool overlap = false;
 
             for(int v2 = 0; v2 < newVerts.Count; v2++)
             {
@@ -30,12 +30,12 @@ public class VertexColorNormalsScript : MonoBehaviour {
                 if((vertices[p2] - pos).sqrMagnitude < precision)
                 {
                     map[v1] = v2;
-                    duplicate = true;
+                    overlap = true;
                     break;
                 }
             }
 
-            if (!duplicate)
+            if (!overlap)
             {
                 map[v1] = newVerts.Count;
                 newVerts.Add(v1);
@@ -74,7 +74,6 @@ public class VertexColorNormalsScript : MonoBehaviour {
 
             newTangent[i] = tangent;
         }
-
         mesh.tangents = newTangent;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,7 +15,7 @@ public struct ObjectPoolData
     }
 }
 
-public class ObjectPool {
+public class ObjectPool : IEnumerable {
 
     Queue<GameObject> pool = new Queue<GameObject>();
 
@@ -22,7 +23,7 @@ public class ObjectPool {
     {
         for(int i = 0; i < size; i++)
         {
-            var pooledObject = Object.Instantiate(gameObject);
+            var pooledObject = GameObject.Instantiate(gameObject);
             pooledObject.SetActive(false);
             pool.Enqueue(pooledObject);
         }
@@ -32,20 +33,20 @@ public class ObjectPool {
     {
         for(int i = 0; i < size; i++)
         {
-            var pooledObject = Object.Instantiate(gameObject);
+            var pooledObject = GameObject.Instantiate(gameObject);
             action(pooledObject);
             pooledObject.SetActive(false);
             pool.Enqueue(pooledObject);
         }
     }
 
-    public ObjectPool (params ObjectPoolData[] data)
+    public ObjectPool (params ObjectPoolData[] objectData)
     {
-        foreach(ObjectPoolData objectData in data)
+        foreach(ObjectPoolData data in objectData)
         {
-            for(int i = 0; i < objectData.count; i++)
+            for(int i = 0; i < data.count; i++)
             {
-                var pooledObject = Object.Instantiate(objectData.gameObject);
+                var pooledObject = GameObject.Instantiate(data.gameObject);
                 pooledObject.SetActive(false);
                 pool.Enqueue(pooledObject);
             }
@@ -90,5 +91,10 @@ public class ObjectPool {
         pool.Enqueue(spawnedObject);
 
         return spawnedObject;
+    }
+
+    public IEnumerator GetEnumerator()
+    {
+        return pool.GetEnumerator();
     }
 }

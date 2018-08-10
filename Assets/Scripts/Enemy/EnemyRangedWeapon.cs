@@ -12,48 +12,29 @@ namespace Assets.Scripts.Enemy
         public GameObject bulletPrefab;
         public Transform shootPosition;
         
-
         static ObjectPool bulletPool;
-        EnemyCombatStats stats;
-        Animator anim;
+        EnemyHealth health;
 
         void Start()
         {
-            stats = GetComponent<EnemyCombatStats>();
-            anim = GetComponent<Animator>();
+            health = GetComponent<EnemyHealth>();
 
             if(bulletPool == null)
             {
                 bulletPool = new ObjectPool(
                 bulletPrefab, 
-                (b) => { var bullet = b.GetComponent<Bullet>(); bullet.shooterTag = "Enemy"; bullet.damage = stats.ProjectileDamage; },
+                (b) => { var bullet = b.GetComponent<Bullet>(); bullet.shooterTag = "Enemy"; bullet.damage = health.stats.Damage; },
                 15
                 );
             }
         }
 
-        public void Attack(GameObject target)
-        {
-            anim.SetTrigger("Shoot");
-        }
-
-        //This function is called by the animation event in the shoot clip, started by setting the "Shoot" trigger above.
+        //This function is called as an animation event by a "Attack" animation clip.
         //It is absolutely ridiculous but alas the "Unity way" to do it.
-        public void ShootBullet()
+        public void Attack()
         {
             var bullet = bulletPool.Spawn(shootPosition.position, transform.rotation);
-            bullet.GetComponent<Rigidbody>().velocity = bullet.transform.forward * stats.ProjectileSpeed;
-        }
-
-        float nextAttack;
-        public bool CanAttack()
-        {
-            if(Time.time > nextAttack)
-            {
-                nextAttack = Time.time + stats.AttackSpeed;
-                return true;
-            }
-            return false;            
+            bullet.GetComponent<Rigidbody>().velocity = bullet.transform.forward * 8;
         }
     }
 }

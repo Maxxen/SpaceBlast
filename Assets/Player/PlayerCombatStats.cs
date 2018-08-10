@@ -58,11 +58,14 @@ public class PlayerCombatStats : MonoBehaviour, IDamageable {
     public float Energy { get { return energy; } private set { energy = value; EnergySlider.value = value; } }
     private float energy;
 
+    public GameController gameController;
 
     Slider HealthSlider;
     Slider EnergySlider;
 
     Renderer render;
+
+
     public void RecalculateStats()
     {
         HealthMax = BASE_HEALTH + (HEALTH_PER_LVL * healthSkill);
@@ -76,15 +79,14 @@ public class PlayerCombatStats : MonoBehaviour, IDamageable {
 
         ShootingEnergyCost = BASE_SHOOT_COST * (1 + shootingSpeedSkill + shootingDamageSkill + (0.5f * bulletVelocitySkill));
 
-        HealthSlider = GameObject.Find("/UI/GameHUD/ResourceSliders/HealthSlider").GetComponent<Slider>();
-        EnergySlider = GameObject.Find("/UI/GameHUD/ResourceSliders/EnergySlider").GetComponent<Slider>();
-
         HealthSlider.maxValue = HealthMax;
         EnergySlider.maxValue = EnergyMax;
 
-        Energy = EnergyMax;
-        Health = HealthMax;
+        HealthSlider.value = HealthMax;
+        EnergySlider.value = EnergyMax;
 
+        Health = HealthMax;
+        Energy = EnergyMax;
     }
 
     public delegate void OnDamageCallback();
@@ -96,8 +98,8 @@ public class PlayerCombatStats : MonoBehaviour, IDamageable {
     private void Start()
     {
         render = GetComponentInChildren<Renderer>();
-        HealthSlider = GameObject.Find("/UI/GameHUD/ResourceSliders/HealthSlider").GetComponent<Slider>();
-        EnergySlider = GameObject.Find("/UI/GameHUD/ResourceSliders/EnergySlider").GetComponent<Slider>();
+        HealthSlider = GameObject.Find("/UI/GameScreen/ResourceSliders/HealthSlider").GetComponent<Slider>();
+        EnergySlider = GameObject.Find("/UI/GameScreen/ResourceSliders/EnergySlider").GetComponent<Slider>();
 
         RecalculateStats();
     }
@@ -141,7 +143,7 @@ public class PlayerCombatStats : MonoBehaviour, IDamageable {
 
         if(Health <= 0)
         {
-
+            gameController.GotoGameOver();
         }
         else
         {         

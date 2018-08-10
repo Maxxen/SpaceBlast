@@ -12,48 +12,29 @@ namespace Assets.Scripts.Enemy
         public GameObject mortarShell;
 
         static ObjectPool mortarPool;
-        EnemyCombatStats stats;
-        Animator anim;
-
-        private GameObject target;
+        EnemyHealth health;
+        GameObject target;
 
         public void Start()
         {
-            stats = GetComponent<EnemyCombatStats>();
-            anim = GetComponent<Animator>();
+            health = GetComponent<EnemyHealth>();
+            target = GetComponent<EnemyAI.AIStateController>().player;
             
             if(mortarPool == null)
             {
                 mortarPool = new ObjectPool(
                 mortarShell, 
-                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.fuseTime = 4; mortar.diameter = 2; mortar.damage = stats.ProjectileDamage; },
+                (b) => { var mortar = b.GetComponent<Mortar>(); mortar.fuseTime = 4; mortar.diameter = 2; mortar.damage = health.stats.Damage; },
                 10
                 );
             }
         }
 
-        public void Attack(GameObject target)
-        {
-            this.target = target;
-            anim.SetTrigger("Shoot");
-        }
-
-        //This function is called by the animation event in the shoot clip, started by setting the "Shoot" trigger above.
+        //This function is called as an animation event by a "Attack" animation clip.
         //It is absolutely ridiculous but alas the "Unity way" to do it.
-        public void FireMortar()
+        public void Attack()
         {
             mortarPool.Spawn(target.transform.position + new Vector3(0, 0.2f, 0), Quaternion.identity);
-        }
-
-        float nextAttack;
-        public bool CanAttack()
-        {
-            if(Time.time > nextAttack)
-            {
-                nextAttack = Time.time + stats.AttackSpeed;
-                return true;
-            }
-            return false;            
         }
     }
 }

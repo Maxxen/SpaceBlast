@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Assets.Scripts.EnemyAI.Actions
 {
     [CreateAssetMenu(menuName = "EnemyAI/Actions/FollowPlayer")]
-    class AIActionChase : AIAction
+    class AIActionFollowPlayer : AIAction
     {
         public override void StartAction(AIStateController controller)
         {

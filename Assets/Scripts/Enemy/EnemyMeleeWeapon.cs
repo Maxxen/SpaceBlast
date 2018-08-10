@@ -10,39 +10,23 @@ namespace Assets.Scripts.Enemy
     {
         public EnemyMeleeRange range;
 
-        EnemyCombatStats stats;
+        EnemyHealth health;
         Animator anim;
 
         private void Start()
         {
-            stats = GetComponent<EnemyCombatStats>();
+            health = GetComponent<EnemyHealth>();
             anim = GetComponent<Animator>();
         }
 
-        public void Attack(GameObject target)
-        {
-            anim.SetTrigger("Attack");
-        }
-
-        //This function is called by the animation event in the shoot clip, started by setting the "Shoot" trigger above.
+        //This function is called as an animation event by a "Attack" animation clip.
         //It is absolutely ridiculous but alas the "Unity way" to do it.
-        public void DealDamage()
+        public void Attack()
         {
             if (range.IsInRange)
             {
                 range.targer.GetComponent<IDamageable>().TakeDamage(1);
             }
-        }
-
-        float nextAttack;
-        public bool CanAttack()
-        {
-            if(Time.time > nextAttack)
-            {
-                nextAttack = Time.time + stats.AttackSpeed;
-                return true;
-            }
-            return false;            
         }
     }
 }

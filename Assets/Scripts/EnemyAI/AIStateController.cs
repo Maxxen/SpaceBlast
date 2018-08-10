@@ -19,8 +19,6 @@ namespace Assets.Scripts.EnemyAI
         [HideInInspector]
         public IWeapon attack;
         [HideInInspector]
-        public EnemyStats health;
-        [HideInInspector]
         public GameObject player;
 
         float stateSwitchTime;
@@ -30,14 +28,11 @@ namespace Assets.Scripts.EnemyAI
         // Use this for initialization
         void Start()
         {
-            gameController = GameObject.Find("UI").GetComponent<GameController>();
+            gameController = GameObject.Find("GameController").GetComponent<GameController>();
             player = GameObject.FindGameObjectWithTag("Player");
             nav = GetComponent<NavMeshAgent>();
             anim = GetComponent<Animator>();
             attack = GetComponent<IWeapon>();
-            health = GetComponent<EnemyStats>();
-
-            nav.speed = health.attributes.MovementSpeed;
 
             stateSwitchTime = Time.time;
 

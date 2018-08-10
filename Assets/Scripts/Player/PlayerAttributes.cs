@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Assets.Scripts.Player
 {
-    enum PlayerAttribute
+    public enum PlayerAttribute
     {
         MaxHealth,
         HealthRegen,
@@ -21,6 +21,9 @@ namespace Assets.Scripts.Player
     [CreateAssetMenu(fileName = "PlayerAttributes")]
     public class PlayerAttributes : ScriptableObject
     {
+        public int Level { get; private set; }
+        public int ExpThreshold { get; private set; }
+
         public int MaxHealth { get; private set; }
         public float HealthRegen { get; private set; }
         public int MaxEnergy { get; private set; }
@@ -33,6 +36,11 @@ namespace Assets.Scripts.Player
         public float MovementSpeed { get; private set; }
 
         public float AttackEnergyCost { get; private set; }
+
+        [SerializeField]
+        float BASE_EXP_THRESHOLD = 1000;
+        [SerializeField]
+        float EXP_THRESHOLD_INCREASE_PER_LVL = 1.25f;
 
         [SerializeField]
         int BASE_HEALTH = 100;
@@ -87,22 +95,12 @@ namespace Assets.Scripts.Player
         int attribute_attackSpeed = 0;
         int attribute_bulletVelocity = 0;
 
-        public void RecalculateStats()
-        {
-            MaxHealth = BASE_HEALTH + (HEALTH_PER_LVL * attribute_health);
-            HealthRegen = BASE_HEALTH_REGEN * (HEALTH_REGEN_PER_LVL * attribute_healthRegen);
-            MaxEnergy = BASE_ENERGY + (ENERGY_PER_LVL * attribute_energy);
-            EnergyRegen = BASE_ENERGY_REGEN + (ENERGY_PER_LVL * attribute_energyRegen);
-            MovementSpeed = Mathf.Log(BASE_MOVEMENT_SPEED, MOVEMENT_SPEED_PER_LVL * (attribute_movementSpeed + 1));
-            AttackDamage = BASE_SHOOT_DAMAGE + (SHOOT_DAMAGE_PER_LVL * attribute_attackDamage);
-            AttackSpeed = BASE_SHOOT_SPEED * (Mathf.Pow(SHOOT_SPEED_PER_LVL, attribute_attackSpeed));
-            BulletVelocity = BASE_BULLET_VELOCITY + (BULLET_VELOCITY_PER_LVL * attribute_attackSpeed);
-
-            AttackEnergyCost = (BASE_SHOOT_COST / (BASE_SHOOT_DAMAGE + BASE_SHOOT_SPEED + BASE_BULLET_VELOCITY)) * (AttackDamage + AttackSpeed + BulletVelocity);
-        }
+        public delegate void OnAttributeChange();
+        public OnAttributeChange AttributeChangeHandler = new OnAttributeChange(() => { });
 
         public void ResetStats()
         {
+            Level = 1;
             attribute_health = 0;
             attribute_healthRegen = 0;
             attribute_energy = 0;
@@ -111,6 +109,61 @@ namespace Assets.Scripts.Player
             attribute_attackDamage = 0;
             attribute_attackSpeed = 0;
             attribute_bulletVelocity = 0;
+
+            RecalculateStats();
+        }
+
+        public void RecalculateStats()
+        {
+            ExpThreshold = (int) (BASE_EXP_THRESHOLD * (Mathf.Pow(EXP_THRESHOLD_INCREASE_PER_LVL, Level)));
+
+            MaxHealth = BASE_HEALTH + (HEALTH_PER_LVL * attribute_health);
+            HealthRegen = BASE_HEALTH_REGEN * (Mathf.Pow(HEALTH_REGEN_PER_LVL, attribute_healthRegen));
+            MaxEnergy = BASE_ENERGY + (ENERGY_PER_LVL * attribute_energy);
+            EnergyRegen = BASE_ENERGY_REGEN * (Mathf.Pow(ENERGY_REGEN_PER_LVL, attribute_energyRegen));
+            Debug.Log(EnergyRegen);
+            MovementSpeed = Mathf.Log(BASE_MOVEMENT_SPEED, MOVEMENT_SPEED_PER_LVL * (attribute_movementSpeed + 1));
+            AttackDamage = BASE_SHOOT_DAMAGE + (SHOOT_DAMAGE_PER_LVL * attribute_attackDamage);
+            AttackSpeed = BASE_SHOOT_SPEED * (Mathf.Pow(SHOOT_SPEED_PER_LVL, attribute_attackSpeed));
+            BulletVelocity = BASE_BULLET_VELOCITY + (BULLET_VELOCITY_PER_LVL * attribute_attackSpeed);
+
+            AttackEnergyCost = (BASE_SHOOT_COST / (BASE_SHOOT_DAMAGE + BASE_SHOOT_SPEED + BASE_BULLET_VELOCITY)) * (AttackDamage + AttackSpeed + BulletVelocity);
+
+            AttributeChangeHandler();
+        }
+
+        public void LevelUp(PlayerAttribute attribute)
+        {
+            Level++;
+            switch (attribute)
+            {
+                case PlayerAttribute.MaxHealth:
+                    attribute_health++;
+                    break;
+                case PlayerAttribute.HealthRegen:
+                    attribute_healthRegen++;
+                    break;
+                case PlayerAttribute.MaxEnergy:
+                    attribute_energy++;
+                    break;
+                case PlayerAttribute.EnergyRegen:
+                    attribute_energyRegen++;
+                    break;
+                case PlayerAttribute.MovementSpeed:
+                    attribute_movementSpeed++;
+                    break;
+                case PlayerAttribute.AttackDamage:
+                    attribute_attackDamage++;
+                    break;
+                case PlayerAttribute.AttackSpeed:
+                    attribute_attackSpeed++;
+                    break;
+                case PlayerAttribute.BulletVelocity:
+                    attribute_bulletVelocity++;
+                    break;
+                default:
+                    break;
+            }
 
             RecalculateStats();
         }

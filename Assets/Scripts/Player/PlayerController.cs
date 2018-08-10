@@ -28,7 +28,6 @@ namespace Assets.Scripts.Player
             control = GetComponent<CharacterController>();
             anim = GetComponent<Animator>();
             stats = GetComponent<PlayerStats>();
-            stats.UpdateStats();
 
             bulletPool = new ObjectPool(
                 bulletPrefab,

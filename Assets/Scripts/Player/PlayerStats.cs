@@ -25,7 +25,8 @@ namespace Assets.Scripts.Player
 
         void Start()
         {
-            UpdateStats();
+            attributes.RecalculateStats();
+            attributes.AttributeChangeHandler += OnAttributeChange;
             render = GetComponentInChildren<Renderer>();
         }
 
@@ -34,17 +35,14 @@ namespace Assets.Scripts.Player
             StartCoroutine(Regeneration());
         }
 
-        public void UpdateStats()
+        private void OnAttributeChange()
         {
-            attributes.RecalculateStats();
             healthSlider.maxValue = attributes.MaxHealth;
             energySlider.maxValue = attributes.MaxEnergy;
 
             Health = attributes.MaxHealth;
             Energy = attributes.MaxEnergy;
         }
-
-        bool regenCooldown = true;
 
         private IEnumerator Regeneration()
         {

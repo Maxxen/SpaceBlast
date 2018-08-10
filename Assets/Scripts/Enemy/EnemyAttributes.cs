@@ -19,7 +19,7 @@ namespace Assets.Scripts.Enemy
         public int MaxHealth { get; private set; }
         public float MovementSpeed { get; private set; }
         public int Damage { get; private set; }
-        public int ScoreReward { get; private set; }
+        public int ExpReward { get; private set; }
 
         [SerializeField]
         int BASE_HEALTH = 100;
@@ -45,7 +45,7 @@ namespace Assets.Scripts.Enemy
 
 
         [SerializeField]
-        int scoreReward = 100;
+        int expReward = 100;
 
         private void OnEnable()
         {
@@ -78,7 +78,7 @@ namespace Assets.Scripts.Enemy
             MovementSpeed = (BASE_MOVEMENT_SPEED + (BASE_MOVEMENT_SPEED_PER_LVL * attribute_MovementSpeed));
             Damage = (BASE_DAMAGE + (BASE_DAMAGE_PER_LVL * attribute_Damage));
 
-            ScoreReward = scoreReward;
+            ExpReward = expReward;
         }
 
         public void ResetStats()

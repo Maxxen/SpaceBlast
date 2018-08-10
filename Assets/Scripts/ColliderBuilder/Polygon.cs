@@ -257,8 +257,6 @@ namespace Assets.Scripts.ColliderBuilder
 			Vector2 n2 = new Vector2(-d2.y, d2.x);
 
 			return (Vector2.Dot(d1, n2) <= 0f);
-            
-            //return ((b.x - a.x) * (c.y - b.y) - (c.x - b.x) * (b.y - a.y) < 0);
         }
 
         public void CalculateConvexAndReflex()
@@ -288,17 +286,6 @@ namespace Assets.Scripts.ColliderBuilder
 
         bool IsEar(Vector2 a, Vector2 b, Vector2 c)
         {
-            //foreach(Vector2 v in reflex)
-            //{
-            //    if(v == a || v == b || v == c)
-            //    {
-            //        continue;
-            //    }
-            //    if (IsInTriangle(v, a, b, c))
-            //        return false;
-            //}
-            //return true;
-
             return !reflex.Any((v) => Utils.IsInTriangle(v, a, b, c) && !(v == a || v == b || v == c));
         }
 
@@ -314,18 +301,6 @@ namespace Assets.Scripts.ColliderBuilder
                     ears.AddLast(v);
                 }
             }
-            
-            //verts.ForEachTriplet((prev, current, next) =>
-            //    {
-            //        if (convex.Contains(current))
-            //        {
-            //            if(IsEar(prev, current, next))
-            //            {
-            //                ears.AddLast(current);
-            //            }
-            //        }
-            //    }
-            //);
         }
     }
 }

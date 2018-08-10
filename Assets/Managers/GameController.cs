@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class GameController : MonoBehaviour {
     
 
+    public int Exp { get { return exp; } private set { exp = value; ExpSlider.value = exp; } }
     public int Score { get; private set; }
     public bool IsPaused { get; private set; }
 
@@ -30,6 +31,12 @@ public class GameController : MonoBehaviour {
     public Text resultFloor;
     public Text resultScore;
 
+    public Slider ExpSlider;
+
+    public AttributeCardDisplay levelUpCard1;
+    public AttributeCardDisplay levelUpCard2;
+    public AttributeCardDisplay levelUpCard3;
+
     public GameObject mainMenu;
     public GameObject gameScreen;
     public GameObject levelUpScreen;
@@ -42,8 +49,11 @@ public class GameController : MonoBehaviour {
     public EnemyAttributes bomberAttributes;
     public PlayerAttributes playerAttributes;
 
+    public List<AttributeCard> attributeCards = new List<AttributeCard>();
+
     GameObject currentScreen;
 
+    int exp;
     System.Random random;
     GameObject map;
 
@@ -84,10 +94,11 @@ public class GameController : MonoBehaviour {
         shooterAttributes.ResetStats();
         bomberAttributes.ResetStats();
         playerAttributes.ResetStats();
-        player.GetComponent<PlayerStats>().UpdateStats();
 
         floor = 0;
         Score = 0;
+        Exp = 0;
+        ExpSlider.maxValue = playerAttributes.ExpThreshold;
 
         scoreCounter.text = "Score: " + Score;
         floorCounter.text = "Floor: " + floor;
@@ -137,6 +148,16 @@ public class GameController : MonoBehaviour {
     {
         Pause();
         currentScreen.SetActive(false);
+
+        var randomAttribute = new System.Random();
+        var attr1 = randomAttribute.Next(0, attributeCards.Count);
+        var attr2 = randomAttribute.Next(0, attributeCards.Count);
+        var attr3 = randomAttribute.Next(0, attributeCards.Count);
+
+        levelUpCard1.card = attributeCards[attr1];
+        levelUpCard2.card = attributeCards[attr2];
+        levelUpCard3.card = attributeCards[attr3];
+
         currentScreen = levelUpScreen;
         currentScreen.SetActive(true);
     }
@@ -217,10 +238,26 @@ public class GameController : MonoBehaviour {
         }
     }
 
-    public void AddScore(int score)
+    public void AddExp(int exp)
     {
-        Score += (score * combo);
+        var experience = (exp * combo);
+        Score += experience;
+        Exp += experience;
 
         scoreCounter.text = "Score: " + Score;
+
+        if(Exp > playerAttributes.ExpThreshold)
+        {
+            Exp = 0;
+            ExpSlider.maxValue = playerAttributes.ExpThreshold;
+            GotoLevelUpMenu();
+        }
+
+    }
+
+    public void LevelUpPlayer(PlayerAttribute attribute)
+    {
+        playerAttributes.LevelUp(attribute);
+        GotoGame();
     }
 }

@@ -3,6 +3,7 @@ using Assets.Scripts.Weapon;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyStats : MonoBehaviour, IDamageable {
 
@@ -14,14 +15,16 @@ public class EnemyStats : MonoBehaviour, IDamageable {
 
     private void Start()
     {
-        gameController = GameObject.Find("UI").GetComponent<GameController>();
+        gameController = GameObject.Find("GameController").GetComponent<GameController>();
         render = GetComponentInChildren<Renderer>();
     }
 
     private void OnEnable()
     {
         attributes.RecalculateStats();
+
         Health = attributes.MaxHealth;
+        GetComponent<NavMeshAgent>().speed = attributes.MovementSpeed;
     }
 
     public void TakeDamage(int damage)
@@ -32,7 +35,7 @@ public class EnemyStats : MonoBehaviour, IDamageable {
         {
             //Die
             gameController.IncreaseCombo();
-            gameController.AddScore(attributes.ScoreReward);
+            gameController.AddExp(attributes.ExpReward);
             this.gameObject.SetActive(false);
         }
         else
